@@ -1,0 +1,70 @@
+# =============================================
+# config.yaml 템플릿 - 실제 키는 config.yaml에 입력
+# 이 파일은 git에 올려도 안전합니다
+# =============================================
+
+mode: "paper"  # "paper" (모의) | "live" (실거래)
+
+kis:
+  app_key: "YOUR_KIS_APP_KEY"
+  app_secret: "YOUR_KIS_APP_SECRET"
+  account_no: "YOUR_ACCOUNT_NUMBER"
+  is_paper: true
+
+upbit:
+  access_key: "YOUR_UPBIT_ACCESS_KEY"
+  secret_key: "YOUR_UPBIT_SECRET_KEY"
+
+binance:
+  api_key: "YOUR_BINANCE_API_KEY"
+  api_secret: "YOUR_BINANCE_API_SECRET"
+  testnet: true
+
+trading:
+  stocks:
+    - symbol: "005930"
+      strategy: "ma_crossover"
+      amount: 500000
+    - symbol: "000660"
+      strategy: "rsi"
+      amount: 300000
+
+  upbit_coins:
+    - symbol: "KRW-BTC"
+      strategy: "bollinger"
+      amount: 100000
+    - symbol: "KRW-ETH"
+      strategy: "rsi"
+      amount: 100000
+
+  binance_coins:
+    - symbol: "BTCUSDT"
+      strategy: "ma_crossover"
+      amount: 50
+
+risk:
+  max_loss_pct: 3.0
+  take_profit_pct: 5.0
+  max_positions: 5
+  daily_loss_limit: 2.0
+
+strategies:
+  ma_crossover:
+    short_period: 5
+    long_period: 20
+    interval: "1d"
+
+  rsi:
+    period: 14
+    oversold: 30
+    overbought: 70
+    interval: "1h"
+
+  bollinger:
+    period: 20
+    std_dev: 2.0
+    interval: "1h"
+
+server:
+  host: "0.0.0.0"
+  port: 8000

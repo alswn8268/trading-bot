@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AUTO TRADER ∙ 자동 매매봇</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:      #080c12;
+    --bg2:     #0d1420;
+    --bg3:     #111a28;
+    --border:  #1e2d45;
+    --border2: #243550;
+    --text:    #c8d8f0;
+    --muted:   #4a6080;
+    --dim:     #2a3d58;
+    --green:   #00e5a0;
+    --red:     #ff4560;
+    --yellow:  #ffd060;
+    --blue:    #4db8ff;
+    --orange:  #ff9040;
+    --mono: 'IBM Plex Mono', monospace;
+    --sans: 'DM Sans', sans-serif;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    font-size: 13px;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ─── SCANLINE OVERLAY ─── */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,0,0,0.04) 2px,
+      rgba(0,0,0,0.04) 4px
+    );
+    pointer-events: none;
+    z-index: 9999;
+  }
+
+  /* ─── HEADER ─── */
+  header {
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+    padding: 0 24px;
+    height: 52px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky; top: 0; z-index: 100;
+  }
+
+  .logo {
+    font-family: var(--mono);
+    font-weight: 700;
+    font-size: 15px;
+    letter-spacing: 4px;
+    color: var(--green);
+    text-shadow: 0 0 20px rgba(0,229,160,0.4);
+  }
+
+  .logo span { color: var(--muted); font-weight: 300; }
+
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+  }
+
+  .status-pill {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 1px;
+  }
+
+  .dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--muted);
+    animation: none;
+  }
+  .dot.active {
+    background: var(--green);
+    box-shadow: 0 0 8px var(--green);
+    animation: pulse 1.5s infinite;
+  }
+  .dot.paper { background: var(--yellow); box-shadow: 0 0 8px var(--yellow); }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  #clock {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--muted);
+    letter-spacing: 2px;
+  }
+
+  .mode-badge {
+    font-family: var(--mono);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    padding: 3px 10px;
+    border-radius: 2px;
+    border: 1px solid;
+  }
+  .mode-badge.paper { color: var(--yellow); border-color: var(--yellow); background: rgba(255,208,96,0.08); }
+  .mode-badge.live  { color: var(--red);    border-color: var(--red);    background: rgba(255,69,96,0.08); }
+
+  /* ─── CONTROLS ─── */
+  .controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .btn {
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 1.5px;
+    padding: 6px 16px;
+    border-radius: 2px;
+    border: 1px solid;
+    cursor: pointer;
+    transition: all 0.15s;
+    text-transform: uppercase;
+  }
+  .btn-start {
+    color: var(--green);
+    border-color: var(--green);
+    background: rgba(0,229,160,0.08);
+  }
+  .btn-start:hover { background: rgba(0,229,160,0.2); box-shadow: 0 0 12px rgba(0,229,160,0.2); }
+  .btn-stop {
+    color: var(--red);
+    border-color: var(--red);
+    background: rgba(255,69,96,0.08);
+  }
+  .btn-stop:hover { background: rgba(255,69,96,0.2); }
+
+  /* ─── LAYOUT ─── */
+  .main {
+    display: grid;
+    grid-template-columns: 1fr 1fr 340px;
+    grid-template-rows: auto 1fr;
+    gap: 1px;
+    background: var(--border);
+    min-height: calc(100vh - 52px);
+  }
+
+  .panel {
+    background: var(--bg);
+    padding: 0;
+  }
+
+  .panel-header {
+    background: var(--bg2);
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .panel-title {
+    font-family: var(--mono);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 3px;
+    color: var(--muted);
+    text-transform: uppercase;
+  }
+
+  .panel-badge {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--blue);
+    background: rgba(77,184,255,0.1);
+    padding: 2px 8px;
+    border-radius: 2px;
+  }
+
+  /* ─── STAT CARDS ─── */
+  .stats-row {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .stat-card {
+    padding: 18px 20px;
+    border-right: 1px solid var(--border);
+    transition: background 0.2s;
+  }
+  .stat-card:last-child { border-right: none; }
+  .stat-card:hover { background: var(--bg2); }
+
+  .stat-label {
+    font-family: var(--mono);
+    font-size: 9px;
+    font-weight: 500;
+    letter-spacing: 2px;
+    color: var(--muted);
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+
+  .stat-value {
+    font-family: var(--mono);
+    font-size: 22px;
+    font-weight: 700;
+    line-height: 1;
+    color: var(--text);
+  }
+
+  .stat-value.green { color: var(--green); text-shadow: 0 0 15px rgba(0,229,160,0.3); }
+  .stat-value.red   { color: var(--red);   text-shadow: 0 0 15px rgba(255,69,96,0.3); }
+  .stat-value.blue  { color: var(--blue);  }
+
+  .stat-sub {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--muted);
+    margin-top: 4px;
+  }
+
+  /* ─── SIGNALS TABLE ─── */
+  .signals-panel { overflow: hidden; }
+
+  .table-wrap {
+    overflow-y: auto;
+    height: calc(100vh - 52px - 100px - 41px);
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+
+  thead th {
+    font-family: var(--mono);
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    color: var(--muted);
+    text-transform: uppercase;
+    padding: 8px 16px;
+    text-align: left;
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+    position: sticky; top: 0;
+  }
+
+  tbody tr {
+    border-bottom: 1px solid rgba(30,45,69,0.5);
+    transition: background 0.1s;
+  }
+  tbody tr:hover { background: var(--bg2); }
+
+  tbody td {
+    padding: 9px 16px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--text);
+  }
+
+  .action-buy  { color: var(--green); font-weight: 700; }
+  .action-sell { color: var(--red);   font-weight: 700; }
+  .action-hold { color: var(--muted); }
+
+  .confidence-bar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .conf-track {
+    flex: 1;
+    height: 3px;
+    background: var(--dim);
+    border-radius: 2px;
+    max-width: 60px;
+  }
+  .conf-fill {
+    height: 100%;
+    border-radius: 2px;
+    background: var(--green);
+    transition: width 0.3s;
+  }
+
+  /* ─── LOG PANEL ─── */
+  .log-panel { overflow: hidden; }
+
+  .log-wrap {
+    overflow-y: auto;
+    height: calc(100vh - 52px - 100px - 41px);
+    padding: 4px 0;
+  }
+
+  .log-entry {
+    display: grid;
+    grid-template-columns: 60px 50px 80px 1fr;
+    gap: 0;
+    padding: 5px 14px;
+    font-family: var(--mono);
+    font-size: 10px;
+    border-bottom: 1px solid rgba(30,45,69,0.3);
+    transition: background 0.1s;
+    animation: fadeIn 0.3s ease;
+  }
+  .log-entry:hover { background: var(--bg2); }
+
+  @keyframes fadeIn {
+    from { opacity: 0; transform: translateX(-4px); }
+    to   { opacity: 1; transform: translateX(0); }
+  }
+
+  .log-time    { color: var(--dim); }
+  .log-level   { font-weight: 700; }
+  .log-symbol  { color: var(--blue); }
+  .log-msg     { color: var(--text); opacity: 0.8; padding-left: 8px; }
+
+  .log-level.INFO  { color: var(--blue); }
+  .log-level.BUY   { color: var(--green); }
+  .log-level.SELL  { color: var(--red); }
+  .log-level.WARN  { color: var(--yellow); }
+  .log-level.ERROR { color: var(--red); }
+  .log-level.PAPER { color: var(--orange); }
+
+  /* ─── EXCHANGE STATUS (right panel) ─── */
+  .right-panel {
+    grid-row: 2;
+    grid-column: 3;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .exchange-list { padding: 12px 14px; }
+
+  .exchange-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px;
+    margin-bottom: 6px;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 2px;
+    transition: all 0.2s;
+  }
+  .exchange-item:hover { border-color: var(--border2); }
+
+  .ex-name {
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 1px;
+  }
+
+  .ex-status {
+    font-family: var(--mono);
+    font-size: 10px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .ex-status.connected { color: var(--green); }
+  .ex-status.disconnected { color: var(--muted); }
+
+  /* ─── STRATEGY LIST ─── */
+  .strategy-list { padding: 0 14px 14px; flex: 1; overflow-y: auto; }
+
+  .strategy-item {
+    padding: 10px 12px;
+    margin-bottom: 5px;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--blue);
+    border-radius: 2px;
+  }
+
+  .strat-header {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 4px;
+  }
+
+  .strat-symbol {
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text);
+  }
+
+  .strat-name {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--blue);
+    background: rgba(77,184,255,0.1);
+    padding: 1px 6px;
+    border-radius: 2px;
+    text-transform: uppercase;
+  }
+
+  .strat-exchange {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--muted);
+  }
+
+  /* ─── CHART AREA ─── */
+  .chart-panel { position: relative; overflow: hidden; }
+
+  canvas#sparkCanvas {
+    display: block;
+    width: 100%;
+    height: 200px;
+  }
+
+  /* ─── SCROLLBAR ─── */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--dim); border-radius: 2px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+
+  /* ─── CONNECTION BANNER ─── */
+  #connBanner {
+    display: none;
+    position: fixed;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(255,69,96,0.15);
+    border: 1px solid var(--red);
+    color: var(--red);
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 2px;
+    padding: 8px 24px;
+    border-radius: 2px;
+    z-index: 200;
+  }
+
+  .empty-row td {
+    text-align: center;
+    padding: 40px;
+    color: var(--dim);
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 2px;
+  }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <div class="logo">AUTO<span>•</span>TRADER <span style="font-size:10px;letter-spacing:2px">v1.0</span></div>
+  <div class="header-right">
+    <div id="clock" class="status-pill">──:──:──</div>
+    <div class="status-pill">
+      <div class="dot" id="statusDot"></div>
+      <span id="statusText">OFFLINE</span>
+    </div>
+    <div class="mode-badge paper" id="modeBadge">PAPER</div>
+    <div class="controls">
+      <button class="btn btn-start" onclick="botAction('start')">▶ START</button>
+      <button class="btn btn-stop"  onclick="botAction('stop')">■ STOP</button>
+    </div>
+  </div>
+</header>
+
+<!-- STATS ROW -->
+<div class="main">
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="stat-label">운영 모드</div>
+      <div class="stat-value blue" id="sMode">PAPER</div>
+      <div class="stat-sub">모의거래</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">전략 수</div>
+      <div class="stat-value" id="sTaskCount">0</div>
+      <div class="stat-sub">활성 전략</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">오늘 손익</div>
+      <div class="stat-value" id="sDailyPnl">0.00%</div>
+      <div class="stat-sub">일일 P&L</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">매수 신호</div>
+      <div class="stat-value green" id="sBuyCount">0</div>
+      <div class="stat-sub">누적</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">매도 신호</div>
+      <div class="stat-value red" id="sSellCount">0</div>
+      <div class="stat-sub">누적</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">연결 거래소</div>
+      <div class="stat-value" id="sExCount">0</div>
+      <div class="stat-sub">/ 3개</div>
+    </div>
+  </div>
+
+  <!-- SIGNALS -->
+  <div class="panel signals-panel">
+    <div class="panel-header">
+      <div class="panel-title">SIGNAL FEED</div>
+      <div class="panel-badge" id="signalCount">0 signals</div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>TIME</th>
+            <th>EXCHANGE</th>
+            <th>SYMBOL</th>
+            <th>ACTION</th>
+            <th>PRICE</th>
+            <th>CONFIDENCE</th>
+            <th>REASON</th>
+          </tr>
+        </thead>
+        <tbody id="signalBody">
+          <tr class="empty-row"><td colspan="7">── 신호 대기 중 ──</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- LOGS -->
+  <div class="panel log-panel">
+    <div class="panel-header">
+      <div class="panel-title">SYSTEM LOG</div>
+      <div class="panel-badge" id="logCount">0 entries</div>
+    </div>
+    <div class="log-wrap" id="logWrap"></div>
+  </div>
+
+  <!-- RIGHT PANEL -->
+  <div class="panel right-panel">
+    <div class="panel-header">
+      <div class="panel-title">EXCHANGES</div>
+    </div>
+    <div class="exchange-list">
+      <div class="exchange-item">
+        <div>
+          <div class="ex-name" style="color:#ff6b35">KIS</div>
+          <div style="font-size:10px;color:var(--muted);font-family:var(--mono);margin-top:2px">한국투자증권</div>
+        </div>
+        <div class="ex-status disconnected" id="exKis">● 미연결</div>
+      </div>
+      <div class="exchange-item">
+        <div>
+          <div class="ex-name" style="color:#00bfff">UPBIT</div>
+          <div style="font-size:10px;color:var(--muted);font-family:var(--mono);margin-top:2px">업비트</div>
+        </div>
+        <div class="ex-status disconnected" id="exUpbit">● 미연결</div>
+      </div>
+      <div class="exchange-item">
+        <div>
+          <div class="ex-name" style="color:#f0b90b">BINANCE</div>
+          <div style="font-size:10px;color:var(--muted);font-family:var(--mono);margin-top:2px">바이낸스</div>
+        </div>
+        <div class="ex-status disconnected" id="exBinance">● 미연결</div>
+      </div>
+    </div>
+
+    <div class="panel-header" style="margin-top:auto">
+      <div class="panel-title">ACTIVE STRATEGIES</div>
+    </div>
+    <div class="strategy-list" id="strategyList">
+      <div style="font-family:var(--mono);font-size:10px;color:var(--dim);text-align:center;padding:20px">
+        config.yaml 설정 후 봇 시작
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="connBanner">⚠ WEBSOCKET DISCONNECTED — RECONNECTING...</div>
+
+<script>
+// ── WebSocket ─────────────────────────────────────
+let ws, reconnectTimer;
+let buyCount = 0, sellCount = 0;
+
+function connect() {
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
+  ws = new WebSocket(`${proto}://${location.host}/ws`);
+
+  ws.onopen = () => {
+    document.getElementById('connBanner').style.display = 'none';
+    clearTimeout(reconnectTimer);
+  };
+
+  ws.onmessage = (e) => {
+    const data = JSON.parse(e.data);
+    updateDashboard(data);
+  };
+
+  ws.onclose = () => {
+    document.getElementById('connBanner').style.display = 'block';
+    reconnectTimer = setTimeout(connect, 3000);
+  };
+}
+
+// ── 대시보드 업데이트 ──────────────────────────────
+function updateDashboard(data) {
+  // 상태 표시
+  const running = data.running;
+  const dot = document.getElementById('statusDot');
+  const statusText = document.getElementById('statusText');
+  dot.className = 'dot ' + (running ? (data.mode === 'live' ? 'active' : 'paper') : '');
+  statusText.textContent = running ? (data.mode === 'live' ? 'LIVE' : 'PAPER') : 'STOPPED';
+
+  // 모드 배지
+  const badge = document.getElementById('modeBadge');
+  badge.textContent = data.mode?.toUpperCase() || 'PAPER';
+  badge.className = 'mode-badge ' + (data.mode === 'live' ? 'live' : 'paper');
+
+  // 스탯
+  document.getElementById('sMode').textContent = data.mode?.toUpperCase() || '–';
+  document.getElementById('sTaskCount').textContent = data.task_count || 0;
+
+  const pnl = data.daily_pnl || 0;
+  const pnlEl = document.getElementById('sDailyPnl');
+  pnlEl.textContent = (pnl >= 0 ? '+' : '') + pnl.toFixed(2) + '%';
+  pnlEl.className = 'stat-value ' + (pnl > 0 ? 'green' : pnl < 0 ? 'red' : '');
+
+  // 거래소 연결
+  const exs = data.exchanges || {};
+  let exConnected = 0;
+  setEx('exKis', exs.kis); if (exs.kis) exConnected++;
+  setEx('exUpbit', exs.upbit); if (exs.upbit) exConnected++;
+  setEx('exBinance', exs.binance); if (exs.binance) exConnected++;
+  document.getElementById('sExCount').textContent = exConnected;
+
+  // 신호
+  const signals = data.signals || [];
+  updateSignals(signals);
+
+  // 로그
+  const logs = data.logs || [];
+  updateLogs(logs);
+}
+
+function setEx(id, connected) {
+  const el = document.getElementById(id);
+  if (connected) {
+    el.textContent = '● 연결됨';
+    el.className = 'ex-status connected';
+  } else {
+    el.textContent = '● 미연결';
+    el.className = 'ex-status disconnected';
+  }
+}
+
+function updateSignals(signals) {
+  const tbody = document.getElementById('signalBody');
+  document.getElementById('signalCount').textContent = signals.length + ' signals';
+
+  let buys = 0, sells = 0;
+
+  if (!signals.length) {
+    tbody.innerHTML = '<tr class="empty-row"><td colspan="7">── 신호 대기 중 ──</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = signals.map(s => {
+    if (s.action === 'BUY') buys++;
+    if (s.action === 'SELL') sells++;
+    const conf = parseFloat(s.confidence) || 0;
+    const color = s.action === 'BUY' ? '#00e5a0' : s.action === 'SELL' ? '#ff4560' : '#4a6080';
+    return `<tr>
+      <td style="color:var(--muted)">${s.time}</td>
+      <td style="color:var(--blue)">${s.exchange}</td>
+      <td style="font-weight:700">${s.symbol}</td>
+      <td class="action-${s.action.toLowerCase()}">${s.action}</td>
+      <td>${Number(s.price).toLocaleString()}</td>
+      <td>
+        <div class="confidence-bar">
+          <div class="conf-track"><div class="conf-fill" style="width:${conf}%;background:${color}"></div></div>
+          <span style="color:${color};font-size:10px">${s.confidence}</span>
+        </div>
+      </td>
+      <td style="color:var(--muted);font-size:10px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.reason}</td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('sBuyCount').textContent = buys;
+  document.getElementById('sSellCount').textContent = sells;
+}
+
+function updateLogs(logs) {
+  const wrap = document.getElementById('logWrap');
+  document.getElementById('logCount').textContent = logs.length + ' entries';
+
+  wrap.innerHTML = logs.map(l => `
+    <div class="log-entry">
+      <span class="log-time">${l.time}</span>
+      <span class="log-level ${l.level}">${l.level}</span>
+      <span class="log-symbol">${l.symbol || ''}</span>
+      <span class="log-msg">${l.message}</span>
+    </div>
+  `).join('');
+}
+
+// ── 봇 제어 ───────────────────────────────────────
+async function botAction(action) {
+  try {
+    const res = await fetch(`/api/bot/${action}`, { method: 'POST' });
+    const data = await res.json();
+    console.log(data.message);
+  } catch(e) {
+    console.error(e);
+  }
+}
+
+// ── 시계 ─────────────────────────────────────────
+function updateClock() {
+  const now = new Date();
+  const h = String(now.getHours()).padStart(2, '0');
+  const m = String(now.getMinutes()).padStart(2, '0');
+  const s = String(now.getSeconds()).padStart(2, '0');
+  document.getElementById('clock').textContent = `${h}:${m}:${s}`;
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// ── 초기화 ───────────────────────────────────────
+connect();
+
+// 최초 상태 폴링 (WS 연결 전)
+fetch('/api/status').then(r => r.json()).then(updateDashboard).catch(() => {});
+</script>
+</body>
+</html>
