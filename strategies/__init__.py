@@ -1,11 +1,15 @@
 from .ma_crossover import MACrossoverStrategy
 from .rsi_strategy import RSIStrategy
 from .bollinger import BollingerStrategy
+from .volatility_breakout import VolatilityBreakoutStrategy
+from .macd_strategy import MACDStrategy
 
 STRATEGY_MAP = {
-    "ma_crossover": MACrossoverStrategy,
-    "rsi": RSIStrategy,
-    "bollinger": BollingerStrategy,
+    "ma_crossover":        MACrossoverStrategy,
+    "rsi":                 RSIStrategy,
+    "bollinger":           BollingerStrategy,
+    "volatility_breakout": VolatilityBreakoutStrategy,
+    "macd":                MACDStrategy,
 }
 
 def get_strategy(name: str, symbol: str, params: dict):

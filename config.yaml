@@ -34,19 +34,19 @@ trading:
       strategy: "rsi"
       amount: 300000
 
-  # 코인 (업비트)
+  # 코인 (업비트) — 변동성 돌파 + RSI 조합 권장
   upbit_coins:
     - symbol: "KRW-BTC"
-      strategy: "bollinger"
+      strategy: "volatility_breakout"
       amount: 100000     # 1회 매수 금액 (원)
     - symbol: "KRW-ETH"
       strategy: "rsi"
       amount: 100000
 
-  # 코인 (바이낸스)
+  # 코인 (바이낸스) — MACD 전략 적용
   binance_coins:
     - symbol: "BTCUSDT"
-      strategy: "ma_crossover"
+      strategy: "macd"
       amount: 50         # USDT 기준
 
 # ── 리스크 관리 ──────────────────────────────
@@ -73,6 +73,19 @@ strategies:
     period: 20
     std_dev: 2.0
     interval: "1h"
+
+  volatility_breakout:
+    k: 0.5             # 변동성 배수 (낮을수록 신호 많음, 권장 0.3~0.7)
+    use_ma_filter: true  # true: 하락장 진입 방지 (권장)
+    ma_period: 20      # MA 필터 기간
+    interval: "1d"     # 일봉 기준으로 운영
+
+  macd:
+    fast: 12           # 단기 EMA 기간
+    slow: 26           # 장기 EMA 기간
+    signal: 9          # 시그널선 기간
+    use_zero_filter: false  # true: 제로선 반대방향 교차 신호 무시
+    interval: "4h"     # 4시간봉 권장 (1h도 가능)
 
 # ── 웹 서버 ─────────────────────────────────
 server:
