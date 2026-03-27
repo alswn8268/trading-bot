@@ -10,5 +10,6 @@ ta==0.11.0
 pyupbit==0.2.33
 python-binance==1.0.19
 requests==2.32.3
+PyJWT>=2.8.0
 schedule==1.2.2
 aiohttp==3.9.5

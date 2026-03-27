@@ -577,7 +577,7 @@ tbody td {
 ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--muted); }
 
-/* ── CLEAR BTN ───────────────────────────────── */
+/* ── ICON BTN ────────────────────────────────── */
 .icon-btn {
   font-family: var(--font); font-size: 10px; font-weight: 600;
   padding: 3px 9px; border-radius: 10px;
@@ -586,6 +586,43 @@ tbody td {
   cursor: pointer; transition: all 0.15s;
 }
 .icon-btn:hover { border-color: var(--border2); color: var(--text2); }
+
+/* ── POSITION ROWS ───────────────────────────── */
+.pos-row {
+  padding: 9px 13px;
+  border-bottom: 1px solid var(--border);
+  transition: background 0.1s;
+  animation: rowIn 0.2s ease;
+}
+.pos-row:last-child { border-bottom: none; }
+.pos-row:hover { background: var(--surface2); }
+
+.pos-top {
+  display: flex; align-items: center;
+  justify-content: space-between; margin-bottom: 4px;
+}
+.pos-symbol { font-size: 12px; font-weight: 700; }
+.pos-pnl {
+  font-size: 12px; font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+.pos-pnl.pos  { color: var(--green); }
+.pos-pnl.neg  { color: var(--red); }
+.pos-pnl.zero { color: var(--muted); }
+
+.pos-meta {
+  display: flex; align-items: center;
+  gap: 8px; font-size: 10px; color: var(--dim);
+}
+.pos-bar-wrap {
+  height: 3px; background: var(--bg);
+  border-radius: 2px; overflow: hidden;
+  border: 1px solid var(--border); margin-top: 5px;
+}
+.pos-bar {
+  height: 100%; border-radius: 2px;
+  transition: width 0.4s, background 0.3s;
+}
 </style>
 </head>
 <body>
@@ -652,9 +689,9 @@ tbody td {
       <div class="stat-sub">SELL 누적</div>
     </div>
     <div class="stat-card c-muted">
-      <div class="stat-label">연결 거래소</div>
-      <div class="stat-value" id="sExCount">0</div>
-      <div class="stat-sub">/ 3개</div>
+      <div class="stat-label">보유 포지션</div>
+      <div class="stat-value" id="sPositionCount">0</div>
+      <div class="stat-sub" id="sTradeCount">거래 0회</div>
     </div>
   </div>
 
@@ -810,6 +847,22 @@ tbody td {
       </div>
     </div>
 
+    <!-- Current Positions -->
+    <div class="card">
+      <div class="card-header">
+        <span>💼 현재 포지션</span>
+        <div style="display:flex;align-items:center;gap:6px">
+          <span class="card-header-sub" id="posCount">0개</span>
+          <button onclick="resetStats()" class="icon-btn" title="일일 통계 초기화">초기화</button>
+        </div>
+      </div>
+      <div id="positionList">
+        <div class="empty-state" style="padding:18px">
+          <div class="empty-state-text" style="font-size:11px">보유 포지션 없음</div>
+        </div>
+      </div>
+    </div>
+
     <!-- Active Strategies -->
     <div class="card">
       <div class="card-header">
@@ -887,6 +940,7 @@ function updateDashboard(data) {
 
   renderSignals();
   renderLogs();
+  renderPositions(data.positions || []);
   updateDistChart();
   updateStrategyList(data.task_count || 0);
 }
@@ -922,6 +976,53 @@ function updateStats(data) {
 
   document.getElementById('sBuyCount').textContent  = sigs.filter(s => s.action === 'BUY').length;
   document.getElementById('sSellCount').textContent = sigs.filter(s => s.action === 'SELL').length;
+
+  const posCnt = data.position_count ?? (data.positions?.length ?? 0);
+  document.getElementById('sPositionCount').textContent = posCnt;
+  document.getElementById('sTradeCount').textContent    = `거래 ${data.trade_count ?? 0}회`;
+}
+
+// ── POSITIONS ───────────────────────────────────
+function renderPositions(positions) {
+  const el = document.getElementById('positionList');
+  document.getElementById('posCount').textContent = (positions?.length ?? 0) + '개';
+
+  if (!positions?.length) {
+    el.innerHTML = `<div class="empty-state" style="padding:18px">
+      <div class="empty-state-text" style="font-size:11px">보유 포지션 없음</div>
+    </div>`;
+    return;
+  }
+
+  el.innerHTML = positions.map(pos => {
+    const pnl    = pos.unrealized_pnl ?? 0;
+    const pnlCls = pnl > 0.1 ? 'pos' : pnl < -0.1 ? 'neg' : 'zero';
+    const pnlStr = (pnl >= 0 ? '+' : '') + pnl.toFixed(2) + '%';
+    // 손실/이익 바: 중앙 기준 ±5% 범위를 100%로 표현
+    const barPct = Math.min(Math.abs(pnl) / 5 * 50, 50);
+    const barColor = pnl >= 0 ? 'var(--green)' : 'var(--red)';
+    const barLeft  = pnl >= 0 ? '50%' : `${50 - barPct}%`;
+    return `<div class="pos-row">
+      <div class="pos-top">
+        <div>
+          <span class="pos-symbol">${pos.symbol}</span>
+          <span style="font-size:10px;color:var(--dim);margin-left:5px">${pos.exchange ?? ''}</span>
+        </div>
+        <span class="pos-pnl ${pnlCls}">${pnlStr}</span>
+      </div>
+      <div class="pos-meta">
+        <span>진입 ${Number(pos.avg_price ?? 0).toLocaleString()}</span>
+        <span>·</span>
+        <span>현재 ${Number(pos.current_price ?? 0).toLocaleString()}</span>
+        <span>·</span>
+        <span>${pos.entry_time ?? ''}</span>
+      </div>
+      <div class="pos-bar-wrap" style="position:relative">
+        <div style="position:absolute;top:0;left:50%;width:1px;height:100%;background:var(--border2)"></div>
+        <div class="pos-bar" style="margin-left:${barLeft};width:${barPct}%;background:${barColor}"></div>
+      </div>
+    </div>`;
+  }).join('');
 }
 
 // ── EXCHANGES ───────────────────────────────────
@@ -1213,6 +1314,16 @@ function showToast(signal) {
     el.style.animation = 'toastOut 0.3s ease forwards';
     el.addEventListener('animationend', () => el.remove(), { once: true });
   }, 4500);
+}
+
+// ── RESET STATS ─────────────────────────────────
+async function resetStats() {
+  if (!confirm('일일 손익·거래 횟수를 초기화하시겠습니까?')) return;
+  try {
+    await fetch('/api/positions/reset', { method: 'POST' });
+    const data = await fetch('/api/status').then(r => r.json());
+    updateDashboard(data);
+  } catch(e) { console.error(e); }
 }
 
 // ── MODE TOGGLE ─────────────────────────────────

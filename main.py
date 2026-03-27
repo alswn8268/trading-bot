@@ -106,6 +106,20 @@ async def get_logs():
     return {"logs": bot.logs}
 
 
+@app.get("/api/positions")
+async def get_positions():
+    return {"positions": list(bot.positions.values())}
+
+
+@app.post("/api/positions/reset")
+async def reset_stats():
+    """일일 손익·거래 통계 초기화"""
+    bot.realized_pnl = 0.0
+    bot.daily_pnl    = 0.0
+    bot.trade_count  = 0
+    return {"ok": True, "message": "통계 초기화됨"}
+
+
 # ── WebSocket ────────────────────────────────────────
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
