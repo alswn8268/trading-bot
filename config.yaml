@@ -87,6 +87,17 @@ strategies:
     use_zero_filter: false  # true: 제로선 반대방향 교차 신호 무시
     interval: "4h"     # 4시간봉 권장 (1h도 가능)
 
+# ── 알림 설정 ────────────────────────────────
+notifications:
+  discord_webhook: ""    # Discord 웹훅 URL  예: https://discord.com/api/webhooks/...
+  kakao_token: ""        # 카카오 나에게 보내기 access_token
+  min_confidence: 0.5    # 이 미만 신뢰도 신호는 무시
+  on_buy: true
+  on_sell: true
+  on_risk: true
+  on_start_stop: true
+  daily_summary: true
+
 # ── 웹 서버 ─────────────────────────────────
 server:
   host: "0.0.0.0"

@@ -560,6 +560,37 @@ tbody td {
 .toast-time   { font-size: 10px; color: var(--dim); }
 .toast-body   { font-size: 11px; color: var(--muted); line-height: 1.4; }
 
+/* ── BACKTEST PANEL ─────────────────────────── */
+.bt-form { padding: 10px 13px; display: flex; flex-direction: column; gap: 8px; border-bottom: 1px solid var(--border); }
+.bt-row  { display: flex; align-items: center; gap: 6px; }
+.bt-label { font-size: 10px; font-weight: 600; color: var(--muted); width: 64px; flex-shrink: 0; }
+.bt-input {
+  font-family: var(--font); font-size: 11px;
+  padding: 4px 8px; border-radius: var(--rs);
+  border: 1px solid var(--border); background: var(--surface); color: var(--text);
+  flex: 1; outline: none;
+}
+.bt-input:focus { border-color: var(--blue); }
+.btn-bt {
+  font-family: var(--font); font-size: 11px; font-weight: 700;
+  padding: 5px 14px; border-radius: var(--rs);
+  border: 1px solid var(--blue-bd); background: var(--blue-bg); color: var(--blue);
+  cursor: pointer; transition: all 0.15s; width: 100%;
+}
+.btn-bt:hover { background: #dbeafe; }
+.btn-bt:disabled { opacity: 0.5; cursor: not-allowed; }
+.bt-result { padding: 10px 13px; font-size: 11px; }
+.bt-stats-grid {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 6px; margin-top: 6px;
+}
+.bt-stat {
+  background: var(--surface2); border: 1px solid var(--border);
+  border-radius: var(--rs); padding: 7px 9px;
+}
+.bt-stat-label { font-size: 9px; font-weight: 600; color: var(--muted); margin-bottom: 3px; }
+.bt-stat-value { font-size: 13px; font-weight: 800; font-variant-numeric: tabular-nums; }
+
 /* ── CONN BANNER ─────────────────────────────── */
 #connBanner {
   position: fixed; bottom: 16px; left: 50%;
@@ -695,37 +726,53 @@ tbody td {
     </div>
   </div>
 
-  <!-- ── LEFT: SIGNAL FEED ─────────────────────── -->
+  <!-- ── LEFT: SIGNAL FEED + TRADE HISTORY ───── -->
   <div class="panel" style="grid-row:2;grid-column:1">
     <div class="panel-header">
-      <div class="panel-title">📡 신호 피드</div>
+      <div class="log-tabs" style="border-bottom:none;background:transparent;padding:0;gap:2px">
+        <button class="log-tab active" onclick="setLeftTab('signals',this)">📡 신호 피드</button>
+        <button class="log-tab"        onclick="setLeftTab('trades',this)">📋 거래 기록</button>
+      </div>
       <div class="panel-badge" id="signalCount">0 signals</div>
     </div>
-    <div class="filter-bar">
-      <button class="filter-btn active" onclick="setSignalFilter('all',this)">전체</button>
-      <button class="filter-btn f-buy"  onclick="setSignalFilter('BUY',this)">매수</button>
-      <button class="filter-btn f-sell" onclick="setSignalFilter('SELL',this)">매도</button>
-      <button class="filter-btn"        onclick="setSignalFilter('HOLD',this)">홀드</button>
-      <div class="filter-spacer"></div>
-      <input id="signalSearch" type="text" placeholder="종목 검색..." oninput="renderSignals()">
+
+    <!-- Signal Feed -->
+    <div id="tabSignals">
+      <div class="filter-bar">
+        <button class="filter-btn active" onclick="setSignalFilter('all',this)">전체</button>
+        <button class="filter-btn f-buy"  onclick="setSignalFilter('BUY',this)">매수</button>
+        <button class="filter-btn f-sell" onclick="setSignalFilter('SELL',this)">매도</button>
+        <button class="filter-btn"        onclick="setSignalFilter('HOLD',this)">홀드</button>
+        <div class="filter-spacer"></div>
+        <input id="signalSearch" type="text" placeholder="종목 검색..." oninput="renderSignals()">
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>시각</th><th>거래소</th><th>종목</th><th>신호</th><th>가격</th><th>신뢰도</th><th>사유</th></tr></thead>
+          <tbody id="signalBody">
+            <tr><td colspan="7"><div class="empty-state"><div class="empty-state-icon">📭</div><div class="empty-state-text">신호 대기 중...</div></div></td></tr>
+          </tbody>
+        </table>
+      </div>
     </div>
-    <div class="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th>시각</th><th>거래소</th><th>종목</th>
-            <th>신호</th><th>가격</th><th>신뢰도</th><th>사유</th>
-          </tr>
-        </thead>
-        <tbody id="signalBody">
-          <tr><td colspan="7">
-            <div class="empty-state">
-              <div class="empty-state-icon">📭</div>
-              <div class="empty-state-text">신호 대기 중...</div>
-            </div>
-          </td></tr>
-        </tbody>
-      </table>
+
+    <!-- Trade History -->
+    <div id="tabTrades" style="display:none;flex-direction:column;flex:1;min-height:0;overflow:hidden">
+      <div class="filter-bar">
+        <button class="filter-btn active" onclick="setTradeFilter('all',this)">전체</button>
+        <button class="filter-btn f-buy"  onclick="setTradeFilter('BUY',this)">매수</button>
+        <button class="filter-btn f-sell" onclick="setTradeFilter('SELL',this)">매도</button>
+        <div class="filter-spacer"></div>
+        <button class="icon-btn" onclick="loadTrades()">새로고침</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>시각</th><th>거래소</th><th>종목</th><th>구분</th><th>가격</th><th>손익</th><th>사유</th></tr></thead>
+          <tbody id="tradeBody">
+            <tr><td colspan="7"><div class="empty-state"><div class="empty-state-icon">📂</div><div class="empty-state-text">거래 기록 없음</div></div></td></tr>
+          </tbody>
+        </table>
+      </div>
     </div>
   </div>
 
@@ -737,10 +784,12 @@ tbody td {
       <div class="chart-tabs">
         <button class="chart-tab active" onclick="setChartTab('pnl',this)">P&amp;L 추이</button>
         <button class="chart-tab"        onclick="setChartTab('dist',this)">신호 분포</button>
+        <button class="chart-tab"        onclick="setChartTab('history',this)">일별 손익</button>
       </div>
       <div class="chart-body">
         <canvas id="pnlChart"></canvas>
-        <canvas id="distChart" style="display:none"></canvas>
+        <canvas id="distChart"     style="display:none"></canvas>
+        <canvas id="historyChart"  style="display:none"></canvas>
       </div>
     </div>
 
@@ -874,6 +923,55 @@ tbody td {
           <div class="empty-state-text" style="font-size:11px">봇 시작 후 전략이 표시됩니다</div>
         </div>
       </div>
+    </div>
+
+    <!-- Trade Stats -->
+    <div class="card">
+      <div class="card-header">
+        <span>📊 거래 통계</span>
+        <button class="icon-btn" onclick="loadStats()">새로고침</button>
+      </div>
+      <div id="statsBody" style="padding:10px 13px">
+        <div class="empty-state" style="padding:10px"><div class="empty-state-text" style="font-size:11px">통계 없음</div></div>
+      </div>
+    </div>
+
+    <!-- Backtest -->
+    <div class="card">
+      <div class="card-header">
+        <span>🔬 백테스트</span>
+        <span class="card-header-sub" id="btStatus">준비</span>
+      </div>
+      <div class="bt-form">
+        <div class="bt-row">
+          <span class="bt-label">종목</span>
+          <input id="btSymbol" class="bt-input" placeholder="예: KRW-BTC" value="KRW-BTC">
+        </div>
+        <div class="bt-row">
+          <span class="bt-label">거래소</span>
+          <select id="btExchange" class="bt-input">
+            <option value="upbit">Upbit</option>
+            <option value="binance">Binance</option>
+            <option value="kis">KIS</option>
+          </select>
+        </div>
+        <div class="bt-row">
+          <span class="bt-label">전략</span>
+          <select id="btStrategy" class="bt-input">
+            <option value="volatility_breakout">변동성 돌파</option>
+            <option value="macd">MACD</option>
+            <option value="rsi">RSI</option>
+            <option value="ma_crossover">MA 교차</option>
+            <option value="bollinger">볼린저</option>
+          </select>
+        </div>
+        <div class="bt-row">
+          <span class="bt-label">초기자본</span>
+          <input id="btCapital" class="bt-input" type="number" value="1000000" min="10000">
+        </div>
+        <button class="btn-bt" id="btRunBtn" onclick="runBacktest()">백테스트 실행</button>
+      </div>
+      <div class="bt-result" id="btResult" style="display:none"></div>
     </div>
 
   </div><!-- /right-col -->
@@ -1291,10 +1389,12 @@ function updateDistChart() {
 function setChartTab(tab, btn) {
   document.querySelectorAll('.chart-tab').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
-  document.getElementById('pnlChart').style.display  = tab === 'pnl'  ? 'block' : 'none';
-  document.getElementById('distChart').style.display = tab === 'dist' ? 'block' : 'none';
-  if (tab === 'pnl')  pnlChart.resize();
-  if (tab === 'dist') distChart.resize();
+  document.getElementById('pnlChart').style.display     = tab === 'pnl'     ? 'block' : 'none';
+  document.getElementById('distChart').style.display    = tab === 'dist'    ? 'block' : 'none';
+  document.getElementById('historyChart').style.display = tab === 'history' ? 'block' : 'none';
+  if (tab === 'pnl')     pnlChart.resize();
+  if (tab === 'dist')    distChart.resize();
+  if (tab === 'history') { histChart.resize(); loadHistoryChart(); }
 }
 
 // ── TOAST ───────────────────────────────────────
@@ -1343,6 +1443,183 @@ async function botAction(action) {
   } catch(e) { console.error(e); }
 }
 
+// ── HISTORY CHART (daily P&L from DB) ───────────
+const histCtx = document.getElementById('historyChart').getContext('2d');
+const histChart = new Chart(histCtx, {
+  type: 'bar',
+  data: { labels: [], datasets: [{ label: '일별 손익', data: [], backgroundColor: [], borderRadius: 4 }] },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    animation: { duration: 300 },
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        backgroundColor: '#fff', borderColor: '#e2e8f0', borderWidth: 1,
+        titleColor: '#64748b', bodyColor: '#0f172a',
+        bodyFont: { weight: '700', family: "'Pretendard'" },
+        callbacks: { label: ctx => ' ' + (ctx.parsed.y >= 0 ? '+' : '') + ctx.parsed.y.toFixed(2) }
+      }
+    },
+    scales: {
+      x: { grid: { display: false }, ticks: { font: { size: 10 }, color: '#94a3b8', maxTicksLimit: 10 } },
+      y: { grid: { color: '#f1f5f9' }, ticks: { font: { size: 10 }, color: '#94a3b8', callback: v => (v >= 0 ? '+' : '') + v } }
+    }
+  }
+});
+
+async function loadHistoryChart() {
+  try {
+    const res  = await fetch('/api/daily-pnl?days=30');
+    const json = await res.json();
+    const rows = json.data || [];
+    histChart.data.labels = rows.map(r => r.date.slice(5));
+    histChart.data.datasets[0].data = rows.map(r => r.pnl);
+    histChart.data.datasets[0].backgroundColor = rows.map(r => r.pnl >= 0 ? 'rgba(5,150,105,0.7)' : 'rgba(220,38,38,0.7)');
+    histChart.update('active');
+  } catch(e) { console.error(e); }
+}
+
+// ── LEFT TABS ────────────────────────────────────
+let leftTab = 'signals';
+let tradeFilter = 'all';
+
+function setLeftTab(tab, btn) {
+  leftTab = tab;
+  document.querySelectorAll('.panel-header .log-tab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('tabSignals').style.display = tab === 'signals' ? '' : 'none';
+  const tradeEl = document.getElementById('tabTrades');
+  tradeEl.style.display = tab === 'trades' ? 'flex' : 'none';
+  if (tab === 'trades') loadTrades();
+}
+
+function setTradeFilter(filter, btn) {
+  tradeFilter = filter;
+  document.querySelectorAll('#tabTrades .filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  loadTrades();
+}
+
+async function loadTrades() {
+  const url = tradeFilter === 'all' ? '/api/trades?limit=100' : `/api/trades?limit=100&action=${tradeFilter}`;
+  try {
+    const res  = await fetch(url);
+    const json = await res.json();
+    renderTrades(json.trades || []);
+    const cnt = document.getElementById('signalCount');
+    cnt.textContent = (json.trades?.length ?? 0) + ' trades';
+  } catch(e) { console.error(e); }
+}
+
+function renderTrades(trades) {
+  const tbody = document.getElementById('tradeBody');
+  if (!trades.length) {
+    tbody.innerHTML = `<tr><td colspan="7"><div class="empty-state"><div class="empty-state-icon">📂</div><div class="empty-state-text">거래 기록 없음</div></div></td></tr>`;
+    return;
+  }
+  tbody.innerHTML = trades.map(t => {
+    const pnl    = t.pnl ?? 0;
+    const pnlCls = pnl > 0 ? 'color:var(--green)' : pnl < 0 ? 'color:var(--red)' : 'color:var(--muted)';
+    const pnlStr = t.action === 'SELL' ? ((pnl >= 0 ? '+' : '') + pnl.toFixed(2)) : '—';
+    return `<tr>
+      <td style="color:var(--dim);font-variant-numeric:tabular-nums">${t.timestamp?.slice(11,19) || ''}</td>
+      <td><span class="badge-ex">${t.exchange}</span></td>
+      <td style="font-weight:700">${t.symbol}</td>
+      <td><span class="badge badge-${t.action.toLowerCase()}">${t.action}</span></td>
+      <td class="price-cell">${Number(t.price).toLocaleString()}</td>
+      <td style="${pnlCls};font-weight:700;font-variant-numeric:tabular-nums">${pnlStr}</td>
+      <td style="color:var(--muted);max-width:130px;overflow:hidden;text-overflow:ellipsis">${t.reason || ''}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ── TRADE STATS ──────────────────────────────────
+async function loadStats() {
+  try {
+    const res  = await fetch('/api/stats');
+    const s    = await res.json();
+    if (!s.total_trades) {
+      document.getElementById('statsBody').innerHTML = `<div class="empty-state" style="padding:10px"><div class="empty-state-text" style="font-size:11px">통계 없음</div></div>`;
+      return;
+    }
+    const pnlColor = s.total_pnl >= 0 ? 'var(--green)' : 'var(--red)';
+    const pfColor  = s.profit_factor >= 1 ? 'var(--green)' : 'var(--red)';
+    document.getElementById('statsBody').innerHTML = `
+      <div class="bt-stats-grid">
+        <div class="bt-stat"><div class="bt-stat-label">총 거래</div><div class="bt-stat-value">${s.total_trades}회</div></div>
+        <div class="bt-stat"><div class="bt-stat-label">승률</div><div class="bt-stat-value" style="color:${s.win_rate>=50?'var(--green)':'var(--red)'}">${s.win_rate}%</div></div>
+        <div class="bt-stat"><div class="bt-stat-label">총 손익</div><div class="bt-stat-value" style="color:${pnlColor}">${s.total_pnl >= 0 ? '+' : ''}${s.total_pnl}</div></div>
+        <div class="bt-stat"><div class="bt-stat-label">Profit Factor</div><div class="bt-stat-value" style="color:${pfColor}">${s.profit_factor}</div></div>
+        <div class="bt-stat"><div class="bt-stat-label">평균 수익</div><div class="bt-stat-value" style="color:var(--green)">+${s.avg_win}</div></div>
+        <div class="bt-stat"><div class="bt-stat-label">평균 손실</div><div class="bt-stat-value" style="color:var(--red)">${s.avg_loss}</div></div>
+      </div>`;
+  } catch(e) { console.error(e); }
+}
+
+// ── BACKTEST ─────────────────────────────────────
+async function runBacktest() {
+  const btn    = document.getElementById('btRunBtn');
+  const status = document.getElementById('btStatus');
+  const result = document.getElementById('btResult');
+
+  btn.disabled = true;
+  status.textContent = '실행 중...';
+  result.style.display = 'none';
+
+  const strategyParamMap = {
+    volatility_breakout: { k: 0.5, use_ma_filter: true, ma_period: 20, interval: '1d' },
+    macd:    { fast: 12, slow: 26, signal: 9, interval: '4h' },
+    rsi:     { period: 14, oversold: 30, overbought: 70, interval: '1h' },
+    ma_crossover: { short_period: 5, long_period: 20, interval: '1d' },
+    bollinger: { period: 20, std_dev: 2.0, interval: '1h' },
+  };
+  const strat = document.getElementById('btStrategy').value;
+
+  try {
+    const res  = await fetch('/api/backtest', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        symbol:          document.getElementById('btSymbol').value.trim(),
+        exchange:        document.getElementById('btExchange').value,
+        strategy:        strat,
+        strategy_params: strategyParamMap[strat] || {},
+        initial_capital: Number(document.getElementById('btCapital').value),
+      }),
+    });
+    const data = await res.json();
+
+    if (data.error) {
+      result.innerHTML = `<div style="color:var(--red);font-size:11px">오류: ${data.error}</div>`;
+      result.style.display = 'block';
+      status.textContent = '오류';
+      return;
+    }
+
+    const s   = data.stats || {};
+    const ret = s.total_return_pct ?? 0;
+    const retColor = ret >= 0 ? 'var(--green)' : 'var(--red)';
+    const ddColor  = (s.max_drawdown_pct ?? 0) >= 15 ? 'var(--red)' : 'var(--yellow)';
+
+    result.innerHTML = `
+      <div style="font-size:10px;font-weight:600;color:var(--muted);margin-bottom:6px">${data.symbol} · ${data.strategy} · ${s.total_trades}회 거래</div>
+      <div class="bt-stats-grid">
+        <div class="bt-stat"><div class="bt-stat-label">총 수익률</div><div class="bt-stat-value" style="color:${retColor}">${ret >= 0 ? '+' : ''}${ret}%</div></div>
+        <div class="bt-stat"><div class="bt-stat-label">승률</div><div class="bt-stat-value" style="color:${(s.win_rate??0)>=50?'var(--green)':'var(--red)'}">${s.win_rate ?? 0}%</div></div>
+        <div class="bt-stat"><div class="bt-stat-label">최대 낙폭</div><div class="bt-stat-value" style="color:${ddColor}">-${s.max_drawdown_pct ?? 0}%</div></div>
+        <div class="bt-stat"><div class="bt-stat-label">Profit Factor</div><div class="bt-stat-value">${s.profit_factor ?? 0}</div></div>
+      </div>`;
+    result.style.display = 'block';
+    status.textContent = '완료';
+  } catch(e) {
+    result.innerHTML = `<div style="color:var(--red);font-size:11px">요청 실패: ${e}</div>`;
+    result.style.display = 'block';
+    status.textContent = '오류';
+  } finally {
+    btn.disabled = false;
+  }
+}
+
 // ── CLOCK & INTERVALS ───────────────────────────
 function updateClock() {
   const n = new Date();
@@ -1364,6 +1641,7 @@ updateMarketHours();
 // ── INIT ────────────────────────────────────────
 connect();
 fetch('/api/status').then(r => r.json()).then(updateDashboard).catch(() => {});
+loadStats();
 </script>
 </body>
 </html>

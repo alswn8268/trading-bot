@@ -13,6 +13,8 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from bot import TradingBot
+import database as db
+import backtest as bt
 
 logging.basicConfig(
     level=logging.INFO,
@@ -118,6 +120,63 @@ async def reset_stats():
     bot.daily_pnl    = 0.0
     bot.trade_count  = 0
     return {"ok": True, "message": "통계 초기화됨"}
+
+
+@app.get("/api/trades")
+async def get_trades(limit: int = 100, action: str = None, symbol: str = None):
+    trades = db.get_trades(action=action, symbol=symbol, limit=limit)
+    return {"trades": trades}
+
+
+@app.get("/api/stats")
+async def get_stats(since: str = None):
+    """since: YYYY-MM-DD 형식, 없으면 전체"""
+    stats = db.get_stats(since_date=since)
+    return stats
+
+
+@app.get("/api/daily-pnl")
+async def get_daily_pnl(days: int = 30):
+    return {"data": db.get_daily_pnl(days=days)}
+
+
+@app.post("/api/backtest")
+async def run_backtest(body: dict):
+    """
+    body: {
+      symbol, exchange, strategy, strategy_params,
+      initial_capital, fee_rate, max_loss_pct, take_profit_pct
+    }
+    백테스트는 실제 OHLCV 데이터를 사용 (봇의 _fetch_ohlcv 활용)
+    """
+    symbol   = body.get("symbol", "")
+    exchange = body.get("exchange", "upbit")
+    strategy = body.get("strategy", "")
+    params   = body.get("strategy_params", {})
+
+    # OHLCV 조회
+    task = {
+        "exchange": exchange,
+        "symbol":   symbol,
+        "interval": params.get("interval", "1d"),
+    }
+    loop = asyncio.get_running_loop()
+    try:
+        df = await bot._fetch_ohlcv(task)
+    except Exception as e:
+        return JSONResponse({"error": f"OHLCV 조회 실패: {e}"}, status_code=500)
+
+    result = bt.run_backtest(
+        df=df,
+        symbol=symbol,
+        strategy_name=strategy,
+        strategy_params=params,
+        initial_capital=float(body.get("initial_capital", 1_000_000)),
+        fee_rate=float(body.get("fee_rate", 0.0005)),
+        max_loss_pct=float(body.get("max_loss_pct", bot.risk["max_loss_pct"])),
+        take_profit_pct=float(body.get("take_profit_pct", bot.risk["take_profit_pct"])),
+    )
+    return JSONResponse(result)
 
 
 # ── WebSocket ────────────────────────────────────────

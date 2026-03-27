@@ -11,6 +11,8 @@ import yaml
 from exchanges import KISExchange, UpbitExchange, BinanceExchange
 from strategies import get_strategy
 from strategies.base import Signal
+from notifier import create_notifier
+import database as db
 
 logger = logging.getLogger("bot")
 
@@ -40,6 +42,8 @@ class TradingBot:
 
         self._init_exchanges()
         self._init_strategies()
+        self.notifier = create_notifier(self.cfg)
+        db.init_db()
         logger.info(f"봇 초기화 완료 | 모드: {self.mode.upper()}")
 
     # ── 초기화 ───────────────────────────────────────
@@ -174,6 +178,19 @@ class TradingBot:
                   f"청산 완료 | 진입 {avg:,.0f} → 현재 {signal.price:,.0f} | 손익 {pnl_pct:+.2f}%")
         return pnl_pct
 
+    def _record_trade_to_db(self, signal: Signal, task: dict, pnl: float = 0.0):
+        db.record_trade(
+            exchange=task["exchange"],
+            symbol=signal.symbol,
+            action=signal.action,
+            price=signal.price,
+            amount=task["amount"],
+            pnl=pnl,
+            reason=signal.reason,
+            confidence=signal.confidence,
+            mode=self.mode,
+        )
+
     def _update_position_price(self, task: dict, current_price: float):
         """사이클마다 보유 포지션 현재가·미실현손익 갱신"""
         key = f"{task['exchange']}:{task['symbol']}"
@@ -262,8 +279,24 @@ class TradingBot:
         # 포지션 진입/청산 기록 (paper·live 공통)
         if signal.action == "BUY":
             self._enter_position(signal, task)
+            self._record_trade_to_db(signal, task)
+            self.notifier.on_signal(
+                signal.action, signal.symbol, signal.price,
+                signal.reason, signal.confidence, task["exchange"].upper()
+            )
         elif signal.action == "SELL":
-            self._exit_position(signal, task)
+            pnl = self._exit_position(signal, task)
+            self._record_trade_to_db(signal, task, pnl)
+            # 손절/익절로 인한 청산인지 확인
+            if "손절" in signal.reason or "익절" in signal.reason:
+                self.notifier.on_risk_exit(
+                    signal.symbol, signal.price, signal.reason, task["exchange"].upper()
+                )
+            else:
+                self.notifier.on_signal(
+                    signal.action, signal.symbol, signal.price,
+                    signal.reason, signal.confidence, task["exchange"].upper()
+                )
 
         # 모의 모드: 실제 주문 없이 반환
         if self.mode == "paper":
@@ -311,6 +344,7 @@ class TradingBot:
         self.running = True
         self._log("INFO", "시스템",
                   f"봇 시작 | 모드: {self.mode.upper()} | 전략 {len(self.tasks)}개")
+        self.notifier.on_bot_start(self.mode.upper(), len(self.tasks))
         while self.running:
             await self.run_cycle()
             await self._notify_ws()
@@ -319,6 +353,7 @@ class TradingBot:
     def stop(self):
         self.running = False
         self._log("INFO", "시스템", "봇 중지됨")
+        self.notifier.on_bot_stop()
 
     # ── 유틸 ─────────────────────────────────────────
     def _log(self, level: str, symbol: str, msg: str):
