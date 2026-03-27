@@ -3,722 +3,1073 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AUTO TRADER ∙ 자동 매매봇</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;700&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<title>AutoTrader · 자동 매매봇</title>
+<link rel="stylesheet" as="style" crossorigin href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css" />
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <style>
-  :root {
-    --bg:      #080c12;
-    --bg2:     #0d1420;
-    --bg3:     #111a28;
-    --border:  #1e2d45;
-    --border2: #243550;
-    --text:    #c8d8f0;
-    --muted:   #4a6080;
-    --dim:     #2a3d58;
-    --green:   #00e5a0;
-    --red:     #ff4560;
-    --yellow:  #ffd060;
-    --blue:    #4db8ff;
-    --orange:  #ff9040;
-    --mono: 'IBM Plex Mono', monospace;
-    --sans: 'DM Sans', sans-serif;
-  }
+:root {
+  --bg:       #f1f5f9;
+  --surface:  #ffffff;
+  --surface2: #f8fafc;
+  --border:   #e2e8f0;
+  --border2:  #cbd5e1;
+  --text:     #0f172a;
+  --text2:    #334155;
+  --muted:    #64748b;
+  --dim:      #94a3b8;
+  --green:    #059669;
+  --green-bg: #ecfdf5;
+  --green-bd: #a7f3d0;
+  --red:      #dc2626;
+  --red-bg:   #fef2f2;
+  --red-bd:   #fecaca;
+  --yellow:   #d97706;
+  --yellow-bg:#fffbeb;
+  --yellow-bd:#fde68a;
+  --blue:     #2563eb;
+  --blue-bg:  #eff6ff;
+  --blue-bd:  #bfdbfe;
+  --orange:   #ea580c;
+  --orange-bg:#fff7ed;
+  --shadow:   0 1px 3px rgba(0,0,0,0.08);
+  --shadow-md:0 4px 12px rgba(0,0,0,0.1);
+  --r:  10px;
+  --rs: 6px;
+  --font: 'Pretendard', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
 
-  * { margin: 0; padding: 0; box-sizing: border-box; }
+*, *::before, *::after { margin:0; padding:0; box-sizing:border-box; }
 
-  body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: var(--sans);
-    font-size: 13px;
-    min-height: 100vh;
-    overflow-x: hidden;
-  }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 13px;
+  height: 100vh;
+  overflow: hidden;
+}
 
-  /* ─── SCANLINE OVERLAY ─── */
-  body::before {
-    content: '';
-    position: fixed; inset: 0;
-    background: repeating-linear-gradient(
-      0deg,
-      transparent,
-      transparent 2px,
-      rgba(0,0,0,0.04) 2px,
-      rgba(0,0,0,0.04) 4px
-    );
-    pointer-events: none;
-    z-index: 9999;
-  }
+/* ── HEADER ─────────────────────────────────── */
+header {
+  height: 54px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 18px;
+  position: relative;
+  z-index: 100;
+  box-shadow: var(--shadow);
+}
 
-  /* ─── HEADER ─── */
-  header {
-    background: var(--bg2);
-    border-bottom: 1px solid var(--border);
-    padding: 0 24px;
-    height: 52px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    position: sticky; top: 0; z-index: 100;
-  }
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.logo-mark {
+  width: 32px; height: 32px;
+  background: var(--blue);
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  color: white; font-size: 13px; font-weight: 900; letter-spacing: -1px;
+  flex-shrink: 0;
+}
+.logo-title { font-size: 15px; font-weight: 800; letter-spacing: -0.3px; }
+.logo-sub   { font-size: 10px; font-weight: 500; color: var(--muted); margin-top: 1px; }
 
-  .logo {
-    font-family: var(--mono);
-    font-weight: 700;
-    font-size: 15px;
-    letter-spacing: 4px;
-    color: var(--green);
-    text-shadow: 0 0 20px rgba(0,229,160,0.4);
-  }
+.header-right { display: flex; align-items: center; gap: 10px; }
 
-  .logo span { color: var(--muted); font-weight: 300; }
+#lastUpdate {
+  font-size: 10px; font-weight: 500;
+  color: var(--dim);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 3px 9px;
+}
 
-  .header-right {
-    display: flex;
-    align-items: center;
-    gap: 20px;
-  }
+#clock {
+  font-size: 12px; font-weight: 700;
+  color: var(--text2);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--rs);
+  padding: 5px 11px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.3px;
+}
 
-  .status-pill {
-    display: flex;
-    align-items: center;
-    gap: 7px;
-    font-family: var(--mono);
-    font-size: 11px;
-    color: var(--muted);
-    letter-spacing: 1px;
-  }
+.status-pill {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 12px; font-weight: 600; color: var(--muted);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 4px 11px;
+}
+.dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--dim); flex-shrink: 0;
+  transition: background 0.3s;
+}
+.dot.active { background: var(--green); animation: dotPulse 2s ease-in-out infinite; }
+.dot.paper  { background: var(--yellow); animation: dotPulse 2s ease-in-out infinite; }
+@keyframes dotPulse {
+  0%,100% { box-shadow: 0 0 0 0 rgba(5,150,105,0.4); }
+  50%     { box-shadow: 0 0 0 4px rgba(5,150,105,0); }
+}
 
-  .dot {
-    width: 7px; height: 7px;
-    border-radius: 50%;
-    background: var(--muted);
-    animation: none;
-  }
-  .dot.active {
-    background: var(--green);
-    box-shadow: 0 0 8px var(--green);
-    animation: pulse 1.5s infinite;
-  }
-  .dot.paper { background: var(--yellow); box-shadow: 0 0 8px var(--yellow); }
+.mode-badge {
+  font-size: 10px; font-weight: 700;
+  padding: 4px 11px;
+  border-radius: 20px; border: 1px solid;
+  letter-spacing: 0.3px;
+}
+.mode-badge.paper { color: var(--yellow); border-color: var(--yellow-bd); background: var(--yellow-bg); }
+.mode-badge.live  { color: var(--red);    border-color: var(--red-bd);    background: var(--red-bg); }
 
-  @keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.4; }
-  }
+/* mode toggle */
+.mode-toggle-wrap {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 11px; font-weight: 600; color: var(--muted);
+}
+.toggle-switch {
+  width: 38px; height: 20px;
+  background: var(--border2);
+  border-radius: 10px;
+  cursor: pointer;
+  position: relative;
+  transition: background 0.2s;
+  border: 1px solid var(--border2);
+}
+.toggle-switch.live { background: #fee2e2; border-color: var(--red-bd); }
+.toggle-knob {
+  position: absolute; top: 2px; left: 2px;
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  background: var(--muted);
+  transition: transform 0.2s, background 0.2s;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+.toggle-switch.live .toggle-knob { transform: translateX(18px); background: var(--red); }
 
-  #clock {
-    font-family: var(--mono);
-    font-size: 12px;
-    color: var(--muted);
-    letter-spacing: 2px;
-  }
+/* buttons */
+.btn {
+  font-family: var(--font);
+  font-size: 12px; font-weight: 700;
+  padding: 6px 14px;
+  border-radius: var(--rs); border: 1px solid;
+  cursor: pointer;
+  transition: all 0.15s;
+  display: flex; align-items: center; gap: 4px;
+}
+.btn-start { color: var(--green); border-color: var(--green-bd); background: var(--green-bg); }
+.btn-start:hover { background: #d1fae5; border-color: var(--green); }
+.btn-stop  { color: var(--red);   border-color: var(--red-bd);   background: var(--red-bg); }
+.btn-stop:hover  { background: #fee2e2; border-color: var(--red); }
 
-  .mode-badge {
-    font-family: var(--mono);
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 2px;
-    padding: 3px 10px;
-    border-radius: 2px;
-    border: 1px solid;
-  }
-  .mode-badge.paper { color: var(--yellow); border-color: var(--yellow); background: rgba(255,208,96,0.08); }
-  .mode-badge.live  { color: var(--red);    border-color: var(--red);    background: rgba(255,69,96,0.08); }
+/* ── MAIN GRID ───────────────────────────────── */
+.main {
+  display: grid;
+  grid-template-columns: 1fr 1fr 272px;
+  grid-template-rows: auto 1fr;
+  gap: 11px;
+  padding: 11px;
+  height: calc(100vh - 54px);
+  overflow: hidden;
+}
 
-  /* ─── CONTROLS ─── */
-  .controls {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
+/* ── STAT CARDS ──────────────────────────────── */
+.stats-row {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 9px;
+}
 
-  .btn {
-    font-family: var(--mono);
-    font-size: 11px;
-    font-weight: 500;
-    letter-spacing: 1.5px;
-    padding: 6px 16px;
-    border-radius: 2px;
-    border: 1px solid;
-    cursor: pointer;
-    transition: all 0.15s;
-    text-transform: uppercase;
-  }
-  .btn-start {
-    color: var(--green);
-    border-color: var(--green);
-    background: rgba(0,229,160,0.08);
-  }
-  .btn-start:hover { background: rgba(0,229,160,0.2); box-shadow: 0 0 12px rgba(0,229,160,0.2); }
-  .btn-stop {
-    color: var(--red);
-    border-color: var(--red);
-    background: rgba(255,69,96,0.08);
-  }
-  .btn-stop:hover { background: rgba(255,69,96,0.2); }
+.stat-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-top: 3px solid var(--border2);
+  border-radius: var(--r);
+  padding: 13px 15px 11px;
+  box-shadow: var(--shadow);
+  transition: box-shadow 0.2s, transform 0.15s;
+  cursor: default;
+}
+.stat-card:hover { box-shadow: var(--shadow-md); transform: translateY(-1px); }
+.stat-card.c-blue   { border-top-color: var(--blue); }
+.stat-card.c-green  { border-top-color: var(--green); }
+.stat-card.c-red    { border-top-color: var(--red); }
+.stat-card.c-yellow { border-top-color: var(--yellow); }
+.stat-card.c-muted  { border-top-color: var(--muted); }
 
-  /* ─── LAYOUT ─── */
-  .main {
-    display: grid;
-    grid-template-columns: 1fr 1fr 340px;
-    grid-template-rows: auto 1fr;
-    gap: 1px;
-    background: var(--border);
-    min-height: calc(100vh - 52px);
-  }
+.stat-label {
+  font-size: 10px; font-weight: 600;
+  color: var(--muted); margin-bottom: 6px;
+}
+.stat-value {
+  font-size: 21px; font-weight: 800;
+  line-height: 1; color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.stat-value.green  { color: var(--green); }
+.stat-value.red    { color: var(--red); }
+.stat-value.blue   { color: var(--blue); }
+.stat-value.yellow { color: var(--yellow); }
+.stat-sub { font-size: 11px; color: var(--dim); margin-top: 5px; }
 
-  .panel {
-    background: var(--bg);
-    padding: 0;
-  }
+/* ── PANEL ───────────────────────────────────── */
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  box-shadow: var(--shadow);
+  display: flex; flex-direction: column;
+  overflow: hidden; min-height: 0;
+}
 
-  .panel-header {
-    background: var(--bg2);
-    padding: 10px 16px;
-    border-bottom: 1px solid var(--border);
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-  }
+.panel-header {
+  height: 42px; padding: 0 14px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+  flex-shrink: 0;
+}
 
-  .panel-title {
-    font-family: var(--mono);
-    font-size: 10px;
-    font-weight: 700;
-    letter-spacing: 3px;
-    color: var(--muted);
-    text-transform: uppercase;
-  }
+.panel-title {
+  font-size: 12px; font-weight: 700; color: var(--text2);
+  display: flex; align-items: center; gap: 6px;
+}
 
-  .panel-badge {
-    font-family: var(--mono);
-    font-size: 10px;
-    color: var(--blue);
-    background: rgba(77,184,255,0.1);
-    padding: 2px 8px;
-    border-radius: 2px;
-  }
+.panel-badge {
+  font-size: 11px; font-weight: 600;
+  padding: 3px 9px; border-radius: 20px;
+  border: 1px solid var(--blue-bd);
+  color: var(--blue); background: var(--blue-bg);
+}
 
-  /* ─── STAT CARDS ─── */
-  .stats-row {
-    grid-column: 1 / -1;
-    display: grid;
-    grid-template-columns: repeat(6, 1fr);
-    background: var(--bg);
-    border-bottom: 1px solid var(--border);
-  }
+/* ── FILTER BAR ──────────────────────────────── */
+.filter-bar {
+  display: flex; align-items: center; gap: 4px;
+  padding: 7px 11px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface2);
+  flex-shrink: 0;
+}
+.filter-btn {
+  font-family: var(--font);
+  font-size: 11px; font-weight: 600;
+  padding: 4px 11px;
+  border-radius: 20px; border: 1px solid transparent;
+  background: transparent; color: var(--muted);
+  cursor: pointer; transition: all 0.15s;
+}
+.filter-btn:hover { background: var(--bg); color: var(--text2); border-color: var(--border); }
+.filter-btn.active { background: var(--surface); border-color: var(--border2); color: var(--text); box-shadow: var(--shadow); }
+.filter-btn.active.f-buy  { background: var(--green-bg); border-color: var(--green-bd); color: var(--green); }
+.filter-btn.active.f-sell { background: var(--red-bg);   border-color: var(--red-bd);   color: var(--red); }
+.filter-spacer { flex: 1; }
 
-  .stat-card {
-    padding: 18px 20px;
-    border-right: 1px solid var(--border);
-    transition: background 0.2s;
-  }
-  .stat-card:last-child { border-right: none; }
-  .stat-card:hover { background: var(--bg2); }
+#signalSearch {
+  font-family: var(--font); font-size: 11px;
+  padding: 4px 10px;
+  border-radius: var(--rs); border: 1px solid var(--border);
+  background: var(--surface); color: var(--text);
+  width: 120px; outline: none;
+  transition: border-color 0.15s;
+}
+#signalSearch:focus { border-color: var(--blue); }
+#signalSearch::placeholder { color: var(--dim); }
 
-  .stat-label {
-    font-family: var(--mono);
-    font-size: 9px;
-    font-weight: 500;
-    letter-spacing: 2px;
-    color: var(--muted);
-    text-transform: uppercase;
-    margin-bottom: 8px;
-  }
+/* ── TABLE ───────────────────────────────────── */
+.table-wrap { overflow-y: auto; flex: 1; min-height: 0; }
 
-  .stat-value {
-    font-family: var(--mono);
-    font-size: 22px;
-    font-weight: 700;
-    line-height: 1;
-    color: var(--text);
-  }
+table { width: 100%; border-collapse: collapse; }
 
-  .stat-value.green { color: var(--green); text-shadow: 0 0 15px rgba(0,229,160,0.3); }
-  .stat-value.red   { color: var(--red);   text-shadow: 0 0 15px rgba(255,69,96,0.3); }
-  .stat-value.blue  { color: var(--blue);  }
+thead th {
+  font-size: 10px; font-weight: 700;
+  color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px;
+  padding: 8px 13px; text-align: left;
+  background: var(--surface2);
+  border-bottom: 1px solid var(--border);
+  position: sticky; top: 0; z-index: 1;
+  white-space: nowrap;
+}
 
-  .stat-sub {
-    font-family: var(--mono);
-    font-size: 10px;
-    color: var(--muted);
-    margin-top: 4px;
-  }
+tbody tr {
+  border-bottom: 1px solid var(--border);
+  transition: background 0.1s;
+  animation: rowIn 0.2s ease;
+}
+@keyframes rowIn {
+  from { opacity: 0; transform: translateY(-3px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+tbody tr:hover { background: var(--surface2); }
+tbody tr:last-child { border-bottom: none; }
+tbody td {
+  padding: 8px 13px; font-size: 12px; color: var(--text2);
+  white-space: nowrap;
+}
 
-  /* ─── SIGNALS TABLE ─── */
-  .signals-panel { overflow: hidden; }
+.badge {
+  display: inline-flex; align-items: center;
+  font-size: 10px; font-weight: 700;
+  padding: 3px 8px; border-radius: 5px;
+}
+.badge-buy  { color: var(--green); background: var(--green-bg); }
+.badge-sell { color: var(--red);   background: var(--red-bg); }
+.badge-hold { color: var(--muted); background: var(--bg); }
+.badge-ex   { font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 4px; color: var(--blue); background: var(--blue-bg); }
 
-  .table-wrap {
-    overflow-y: auto;
-    height: calc(100vh - 52px - 100px - 41px);
-  }
+.conf-wrap  { display: flex; align-items: center; gap: 6px; }
+.conf-track { width: 46px; height: 4px; background: var(--bg); border-radius: 2px; overflow: hidden; flex-shrink: 0; border: 1px solid var(--border); }
+.conf-fill  { height: 100%; border-radius: 2px; transition: width 0.4s; }
+.conf-text  { font-size: 11px; font-weight: 600; min-width: 28px; }
 
-  table {
-    width: 100%;
-    border-collapse: collapse;
-  }
+.price-cell { font-variant-numeric: tabular-nums; font-weight: 700; }
 
-  thead th {
-    font-family: var(--mono);
-    font-size: 9px;
-    font-weight: 700;
-    letter-spacing: 2px;
-    color: var(--muted);
-    text-transform: uppercase;
-    padding: 8px 16px;
-    text-align: left;
-    background: var(--bg2);
-    border-bottom: 1px solid var(--border);
-    position: sticky; top: 0;
-  }
+.empty-state      { text-align: center; padding: 40px 20px; }
+.empty-state-icon { font-size: 28px; margin-bottom: 8px; }
+.empty-state-text { font-size: 12px; font-weight: 500; color: var(--dim); }
 
-  tbody tr {
-    border-bottom: 1px solid rgba(30,45,69,0.5);
-    transition: background 0.1s;
-  }
-  tbody tr:hover { background: var(--bg2); }
+/* ── MIDDLE COLUMN ───────────────────────────── */
+.middle-col {
+  grid-row: 2; grid-column: 2;
+  display: flex; flex-direction: column;
+  gap: 11px; min-height: 0; overflow: hidden;
+}
 
-  tbody td {
-    padding: 9px 16px;
-    font-family: var(--mono);
-    font-size: 11px;
-    color: var(--text);
-  }
+/* ── CHART PANEL ─────────────────────────────── */
+.chart-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  box-shadow: var(--shadow);
+  flex-shrink: 0; overflow: hidden;
+}
+.chart-tabs {
+  display: flex; padding: 0 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface2);
+}
+.chart-tab {
+  font-family: var(--font); font-size: 11px; font-weight: 600;
+  padding: 9px 12px; border: none; background: transparent;
+  color: var(--muted); cursor: pointer;
+  border-bottom: 2px solid transparent; margin-bottom: -1px;
+  transition: all 0.15s;
+}
+.chart-tab:hover { color: var(--text2); }
+.chart-tab.active { color: var(--blue); border-bottom-color: var(--blue); }
 
-  .action-buy  { color: var(--green); font-weight: 700; }
-  .action-sell { color: var(--red);   font-weight: 700; }
-  .action-hold { color: var(--muted); }
+.chart-body {
+  padding: 10px 12px 8px;
+  height: 172px; position: relative;
+}
+.chart-body canvas { display: block; }
 
-  .confidence-bar {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-  }
-  .conf-track {
-    flex: 1;
-    height: 3px;
-    background: var(--dim);
-    border-radius: 2px;
-    max-width: 60px;
-  }
-  .conf-fill {
-    height: 100%;
-    border-radius: 2px;
-    background: var(--green);
-    transition: width 0.3s;
-  }
+/* ── LOG PANEL ───────────────────────────────── */
+.log-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  box-shadow: var(--shadow);
+  display: flex; flex-direction: column;
+  overflow: hidden; flex: 1; min-height: 0;
+}
+.log-tabs {
+  display: flex; padding: 0 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface2); flex-shrink: 0;
+}
+.log-tab {
+  font-family: var(--font); font-size: 11px; font-weight: 600;
+  padding: 9px 12px; border: none; background: transparent;
+  color: var(--muted); cursor: pointer;
+  border-bottom: 2px solid transparent; margin-bottom: -1px;
+  transition: all 0.15s;
+}
+.log-tab:hover { color: var(--text2); }
+.log-tab.active { color: var(--blue); border-bottom-color: var(--blue); }
 
-  /* ─── LOG PANEL ─── */
-  .log-panel { overflow: hidden; }
+.log-wrap { overflow-y: auto; flex: 1; min-height: 0; }
 
-  .log-wrap {
-    overflow-y: auto;
-    height: calc(100vh - 52px - 100px - 41px);
-    padding: 4px 0;
-  }
+.log-entry {
+  display: grid;
+  grid-template-columns: 54px 44px 74px 1fr;
+  padding: 6px 13px; font-size: 11px;
+  border-bottom: 1px solid var(--border);
+  transition: background 0.1s;
+  animation: rowIn 0.2s ease;
+}
+.log-entry:hover { background: var(--surface2); }
+.log-entry:last-child { border-bottom: none; }
+.log-time   { color: var(--dim); font-variant-numeric: tabular-nums; }
+.log-level  { font-weight: 700; font-size: 10px; }
+.log-symbol { color: var(--blue); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; padding-right: 4px; }
+.log-msg    { color: var(--muted); padding-left: 6px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.log-level.INFO  { color: var(--blue); }
+.log-level.BUY   { color: var(--green); }
+.log-level.SELL  { color: var(--red); }
+.log-level.WARN  { color: var(--yellow); }
+.log-level.ERROR { color: var(--red); }
+.log-level.PAPER { color: var(--orange); }
 
-  .log-entry {
-    display: grid;
-    grid-template-columns: 60px 50px 80px 1fr;
-    gap: 0;
-    padding: 5px 14px;
-    font-family: var(--mono);
-    font-size: 10px;
-    border-bottom: 1px solid rgba(30,45,69,0.3);
-    transition: background 0.1s;
-    animation: fadeIn 0.3s ease;
-  }
-  .log-entry:hover { background: var(--bg2); }
+/* ── RIGHT COLUMN ────────────────────────────── */
+.right-col {
+  grid-row: 2; grid-column: 3;
+  display: flex; flex-direction: column;
+  gap: 9px; overflow-y: auto; min-height: 0;
+  padding-right: 1px;
+}
 
-  @keyframes fadeIn {
-    from { opacity: 0; transform: translateX(-4px); }
-    to   { opacity: 1; transform: translateX(0); }
-  }
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  box-shadow: var(--shadow);
+  overflow: hidden; flex-shrink: 0;
+}
+.card-header {
+  height: 38px; padding: 0 13px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 11px; font-weight: 700; color: var(--text2);
+  background: var(--surface2);
+}
+.card-header-sub { font-size: 10px; font-weight: 500; color: var(--muted); }
 
-  .log-time    { color: var(--dim); }
-  .log-level   { font-weight: 700; }
-  .log-symbol  { color: var(--blue); }
-  .log-msg     { color: var(--text); opacity: 0.8; padding-left: 8px; }
+/* exchange rows */
+.exchange-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 9px 13px;
+  border-bottom: 1px solid var(--border);
+  transition: background 0.1s;
+}
+.exchange-row:last-child { border-bottom: none; }
+.exchange-row:hover { background: var(--surface2); }
 
-  .log-level.INFO  { color: var(--blue); }
-  .log-level.BUY   { color: var(--green); }
-  .log-level.SELL  { color: var(--red); }
-  .log-level.WARN  { color: var(--yellow); }
-  .log-level.ERROR { color: var(--red); }
-  .log-level.PAPER { color: var(--orange); }
+.ex-left { display: flex; align-items: center; gap: 9px; }
+.ex-logo {
+  width: 30px; height: 30px; border-radius: 7px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 800; flex-shrink: 0;
+}
+.ex-logo.kis     { background: var(--orange-bg); color: var(--orange); }
+.ex-logo.upbit   { background: var(--blue-bg);   color: var(--blue); }
+.ex-logo.binance { background: var(--yellow-bg); color: var(--yellow); }
+.ex-name { font-size: 12px; font-weight: 700; line-height: 1.2; }
+.ex-sub  { font-size: 10px; color: var(--dim); margin-top: 1px; }
 
-  /* ─── EXCHANGE STATUS (right panel) ─── */
-  .right-panel {
-    grid-row: 2;
-    grid-column: 3;
-    display: flex;
-    flex-direction: column;
-  }
+.ex-pill {
+  font-size: 10px; font-weight: 600;
+  padding: 3px 9px; border-radius: 10px;
+}
+.ex-pill.on  { color: var(--green); background: var(--green-bg); }
+.ex-pill.off { color: var(--dim);   background: var(--bg); }
 
-  .exchange-list { padding: 12px 14px; }
+/* market hours */
+.market-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 13px; border-bottom: 1px solid var(--border); font-size: 12px;
+}
+.market-row:last-child { border-bottom: none; }
+.market-name  { font-weight: 600; line-height: 1.2; }
+.market-hours { font-size: 10px; color: var(--dim); margin-top: 1px; }
+.market-tag {
+  font-size: 10px; font-weight: 700;
+  padding: 3px 9px; border-radius: 10px;
+}
+.market-tag.open   { color: var(--green); background: var(--green-bg); }
+.market-tag.closed { color: var(--muted); background: var(--bg); }
+.market-tag.always { color: var(--blue);  background: var(--blue-bg); }
 
-  .exchange-item {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 10px 12px;
-    margin-bottom: 6px;
-    background: var(--bg2);
-    border: 1px solid var(--border);
-    border-radius: 2px;
-    transition: all 0.2s;
-  }
-  .exchange-item:hover { border-color: var(--border2); }
+/* risk gauge */
+.risk-body { padding: 12px 13px; }
+.risk-top {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 8px;
+}
+.risk-label { font-size: 11px; font-weight: 600; color: var(--text2); }
+.risk-pct   { font-size: 13px; font-weight: 800; font-variant-numeric: tabular-nums; color: var(--green); }
+.risk-track {
+  height: 8px; background: var(--bg);
+  border-radius: 4px; overflow: hidden;
+  border: 1px solid var(--border); margin-bottom: 5px;
+}
+.risk-fill {
+  height: 100%; border-radius: 4px;
+  background: var(--green);
+  transition: width 0.6s ease, background 0.4s;
+}
+.risk-fill.warn   { background: var(--yellow); }
+.risk-fill.danger { background: var(--red); }
+.risk-labels {
+  display: flex; justify-content: space-between;
+  font-size: 10px; color: var(--dim);
+}
 
-  .ex-name {
-    font-family: var(--mono);
-    font-size: 12px;
-    font-weight: 700;
-    letter-spacing: 1px;
-  }
+/* strategy rows */
+.strat-row {
+  display: flex; align-items: center; gap: 9px;
+  padding: 9px 13px;
+  border-bottom: 1px solid var(--border);
+  transition: background 0.1s;
+  animation: rowIn 0.2s ease;
+}
+.strat-row:last-child { border-bottom: none; }
+.strat-row:hover { background: var(--surface2); }
+.strat-accent { width: 3px; height: 28px; border-radius: 2px; background: var(--blue); flex-shrink: 0; }
+.strat-info   { flex: 1; min-width: 0; }
+.strat-symbol { font-size: 12px; font-weight: 700; }
+.strat-detail { font-size: 10px; color: var(--dim); margin-top: 2px; }
+.strat-type   { font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 4px; color: var(--blue); background: var(--blue-bg); flex-shrink: 0; }
 
-  .ex-status {
-    font-family: var(--mono);
-    font-size: 10px;
-    display: flex;
-    align-items: center;
-    gap: 5px;
-  }
-  .ex-status.connected { color: var(--green); }
-  .ex-status.disconnected { color: var(--muted); }
+/* ── TOAST ───────────────────────────────────── */
+#toastStack {
+  position: fixed; top: 64px; right: 14px;
+  display: flex; flex-direction: column; gap: 8px;
+  z-index: 500; pointer-events: none;
+}
+.toast {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--blue);
+  border-radius: var(--r);
+  box-shadow: var(--shadow-md);
+  padding: 11px 13px; width: 256px;
+  pointer-events: auto;
+  animation: toastIn 0.3s cubic-bezier(0.34,1.56,0.64,1);
+}
+.toast.buy  { border-left-color: var(--green); }
+.toast.sell { border-left-color: var(--red); }
+@keyframes toastIn {
+  from { opacity: 0; transform: translateX(14px) scale(0.95); }
+  to   { opacity: 1; transform: translateX(0) scale(1); }
+}
+@keyframes toastOut {
+  from { opacity: 1; transform: translateX(0); max-height: 80px; padding: 11px 13px; margin-bottom: 0; }
+  to   { opacity: 0; transform: translateX(14px); max-height: 0; padding: 0; }
+}
+.toast-header { display: flex; align-items: center; gap: 6px; margin-bottom: 3px; }
+.toast-icon   { font-size: 14px; }
+.toast-title  { font-size: 12px; font-weight: 700; flex: 1; }
+.toast-time   { font-size: 10px; color: var(--dim); }
+.toast-body   { font-size: 11px; color: var(--muted); line-height: 1.4; }
 
-  /* ─── STRATEGY LIST ─── */
-  .strategy-list { padding: 0 14px 14px; flex: 1; overflow-y: auto; }
+/* ── CONN BANNER ─────────────────────────────── */
+#connBanner {
+  position: fixed; bottom: 16px; left: 50%;
+  transform: translateX(-50%);
+  background: var(--red-bg); border: 1px solid var(--red-bd);
+  color: var(--red); font-size: 12px; font-weight: 600;
+  padding: 8px 18px; border-radius: var(--r);
+  z-index: 400; box-shadow: var(--shadow-md);
+  display: none; align-items: center; gap: 7px;
+}
 
-  .strategy-item {
-    padding: 10px 12px;
-    margin-bottom: 5px;
-    background: var(--bg2);
-    border: 1px solid var(--border);
-    border-left: 3px solid var(--blue);
-    border-radius: 2px;
-  }
+/* ── SCROLLBAR ───────────────────────────────── */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+::-webkit-scrollbar-thumb:hover { background: var(--muted); }
 
-  .strat-header {
-    display: flex;
-    justify-content: space-between;
-    margin-bottom: 4px;
-  }
-
-  .strat-symbol {
-    font-family: var(--mono);
-    font-size: 12px;
-    font-weight: 700;
-    color: var(--text);
-  }
-
-  .strat-name {
-    font-family: var(--mono);
-    font-size: 10px;
-    color: var(--blue);
-    background: rgba(77,184,255,0.1);
-    padding: 1px 6px;
-    border-radius: 2px;
-    text-transform: uppercase;
-  }
-
-  .strat-exchange {
-    font-family: var(--mono);
-    font-size: 10px;
-    color: var(--muted);
-  }
-
-  /* ─── CHART AREA ─── */
-  .chart-panel { position: relative; overflow: hidden; }
-
-  canvas#sparkCanvas {
-    display: block;
-    width: 100%;
-    height: 200px;
-  }
-
-  /* ─── SCROLLBAR ─── */
-  ::-webkit-scrollbar { width: 4px; }
-  ::-webkit-scrollbar-track { background: var(--bg); }
-  ::-webkit-scrollbar-thumb { background: var(--dim); border-radius: 2px; }
-  ::-webkit-scrollbar-thumb:hover { background: var(--muted); }
-
-  /* ─── CONNECTION BANNER ─── */
-  #connBanner {
-    display: none;
-    position: fixed;
-    bottom: 20px;
-    left: 50%;
-    transform: translateX(-50%);
-    background: rgba(255,69,96,0.15);
-    border: 1px solid var(--red);
-    color: var(--red);
-    font-family: var(--mono);
-    font-size: 11px;
-    letter-spacing: 2px;
-    padding: 8px 24px;
-    border-radius: 2px;
-    z-index: 200;
-  }
-
-  .empty-row td {
-    text-align: center;
-    padding: 40px;
-    color: var(--dim);
-    font-family: var(--mono);
-    font-size: 11px;
-    letter-spacing: 2px;
-  }
+/* ── CLEAR BTN ───────────────────────────────── */
+.icon-btn {
+  font-family: var(--font); font-size: 10px; font-weight: 600;
+  padding: 3px 9px; border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--bg); color: var(--muted);
+  cursor: pointer; transition: all 0.15s;
+}
+.icon-btn:hover { border-color: var(--border2); color: var(--text2); }
 </style>
 </head>
 <body>
 
-<!-- HEADER -->
+<!-- ── HEADER ──────────────────────────────────── -->
 <header>
-  <div class="logo">AUTO<span>•</span>TRADER <span style="font-size:10px;letter-spacing:2px">v1.0</span></div>
+  <div class="logo">
+    <div class="logo-mark">AT</div>
+    <div>
+      <div class="logo-title">AutoTrader</div>
+      <div class="logo-sub">자동 매매봇 대시보드</div>
+    </div>
+  </div>
+
   <div class="header-right">
-    <div id="clock" class="status-pill">──:──:──</div>
+    <div id="lastUpdate">—</div>
+    <div id="clock">──:──:──</div>
     <div class="status-pill">
       <div class="dot" id="statusDot"></div>
       <span id="statusText">OFFLINE</span>
     </div>
     <div class="mode-badge paper" id="modeBadge">PAPER</div>
-    <div class="controls">
-      <button class="btn btn-start" onclick="botAction('start')">▶ START</button>
-      <button class="btn btn-stop"  onclick="botAction('stop')">■ STOP</button>
+    <div class="mode-toggle-wrap">
+      <span>모의</span>
+      <div class="toggle-switch" id="modeToggle" onclick="toggleMode()" title="거래 모드 전환">
+        <div class="toggle-knob"></div>
+      </div>
+      <span>실거래</span>
+    </div>
+    <div style="display:flex;gap:6px">
+      <button class="btn btn-start" onclick="botAction('start')">▶ 시작</button>
+      <button class="btn btn-stop"  onclick="botAction('stop')">■ 정지</button>
     </div>
   </div>
 </header>
 
-<!-- STATS ROW -->
 <div class="main">
+
+  <!-- ── STATS ROW ─────────────────────────────── -->
   <div class="stats-row">
-    <div class="stat-card">
+    <div class="stat-card c-blue">
       <div class="stat-label">운영 모드</div>
       <div class="stat-value blue" id="sMode">PAPER</div>
       <div class="stat-sub">모의거래</div>
     </div>
-    <div class="stat-card">
-      <div class="stat-label">전략 수</div>
+    <div class="stat-card c-muted">
+      <div class="stat-label">활성 전략</div>
       <div class="stat-value" id="sTaskCount">0</div>
-      <div class="stat-sub">활성 전략</div>
+      <div class="stat-sub">전략 수</div>
     </div>
-    <div class="stat-card">
+    <div class="stat-card c-green">
       <div class="stat-label">오늘 손익</div>
       <div class="stat-value" id="sDailyPnl">0.00%</div>
-      <div class="stat-sub">일일 P&L</div>
+      <div class="stat-sub">일일 P&amp;L</div>
     </div>
-    <div class="stat-card">
+    <div class="stat-card c-green">
       <div class="stat-label">매수 신호</div>
       <div class="stat-value green" id="sBuyCount">0</div>
-      <div class="stat-sub">누적</div>
+      <div class="stat-sub">BUY 누적</div>
     </div>
-    <div class="stat-card">
+    <div class="stat-card c-red">
       <div class="stat-label">매도 신호</div>
       <div class="stat-value red" id="sSellCount">0</div>
-      <div class="stat-sub">누적</div>
+      <div class="stat-sub">SELL 누적</div>
     </div>
-    <div class="stat-card">
+    <div class="stat-card c-muted">
       <div class="stat-label">연결 거래소</div>
       <div class="stat-value" id="sExCount">0</div>
       <div class="stat-sub">/ 3개</div>
     </div>
   </div>
 
-  <!-- SIGNALS -->
-  <div class="panel signals-panel">
+  <!-- ── LEFT: SIGNAL FEED ─────────────────────── -->
+  <div class="panel" style="grid-row:2;grid-column:1">
     <div class="panel-header">
-      <div class="panel-title">SIGNAL FEED</div>
+      <div class="panel-title">📡 신호 피드</div>
       <div class="panel-badge" id="signalCount">0 signals</div>
+    </div>
+    <div class="filter-bar">
+      <button class="filter-btn active" onclick="setSignalFilter('all',this)">전체</button>
+      <button class="filter-btn f-buy"  onclick="setSignalFilter('BUY',this)">매수</button>
+      <button class="filter-btn f-sell" onclick="setSignalFilter('SELL',this)">매도</button>
+      <button class="filter-btn"        onclick="setSignalFilter('HOLD',this)">홀드</button>
+      <div class="filter-spacer"></div>
+      <input id="signalSearch" type="text" placeholder="종목 검색..." oninput="renderSignals()">
     </div>
     <div class="table-wrap">
       <table>
         <thead>
           <tr>
-            <th>TIME</th>
-            <th>EXCHANGE</th>
-            <th>SYMBOL</th>
-            <th>ACTION</th>
-            <th>PRICE</th>
-            <th>CONFIDENCE</th>
-            <th>REASON</th>
+            <th>시각</th><th>거래소</th><th>종목</th>
+            <th>신호</th><th>가격</th><th>신뢰도</th><th>사유</th>
           </tr>
         </thead>
         <tbody id="signalBody">
-          <tr class="empty-row"><td colspan="7">── 신호 대기 중 ──</td></tr>
+          <tr><td colspan="7">
+            <div class="empty-state">
+              <div class="empty-state-icon">📭</div>
+              <div class="empty-state-text">신호 대기 중...</div>
+            </div>
+          </td></tr>
         </tbody>
       </table>
     </div>
   </div>
 
-  <!-- LOGS -->
-  <div class="panel log-panel">
-    <div class="panel-header">
-      <div class="panel-title">SYSTEM LOG</div>
-      <div class="panel-badge" id="logCount">0 entries</div>
-    </div>
-    <div class="log-wrap" id="logWrap"></div>
-  </div>
+  <!-- ── MIDDLE COLUMN ──────────────────────────── -->
+  <div class="middle-col">
 
-  <!-- RIGHT PANEL -->
-  <div class="panel right-panel">
-    <div class="panel-header">
-      <div class="panel-title">EXCHANGES</div>
-    </div>
-    <div class="exchange-list">
-      <div class="exchange-item">
-        <div>
-          <div class="ex-name" style="color:#ff6b35">KIS</div>
-          <div style="font-size:10px;color:var(--muted);font-family:var(--mono);margin-top:2px">한국투자증권</div>
-        </div>
-        <div class="ex-status disconnected" id="exKis">● 미연결</div>
+    <!-- CHART -->
+    <div class="chart-panel">
+      <div class="chart-tabs">
+        <button class="chart-tab active" onclick="setChartTab('pnl',this)">P&amp;L 추이</button>
+        <button class="chart-tab"        onclick="setChartTab('dist',this)">신호 분포</button>
       </div>
-      <div class="exchange-item">
-        <div>
-          <div class="ex-name" style="color:#00bfff">UPBIT</div>
-          <div style="font-size:10px;color:var(--muted);font-family:var(--mono);margin-top:2px">업비트</div>
-        </div>
-        <div class="ex-status disconnected" id="exUpbit">● 미연결</div>
-      </div>
-      <div class="exchange-item">
-        <div>
-          <div class="ex-name" style="color:#f0b90b">BINANCE</div>
-          <div style="font-size:10px;color:var(--muted);font-family:var(--mono);margin-top:2px">바이낸스</div>
-        </div>
-        <div class="ex-status disconnected" id="exBinance">● 미연결</div>
+      <div class="chart-body">
+        <canvas id="pnlChart"></canvas>
+        <canvas id="distChart" style="display:none"></canvas>
       </div>
     </div>
 
-    <div class="panel-header" style="margin-top:auto">
-      <div class="panel-title">ACTIVE STRATEGIES</div>
-    </div>
-    <div class="strategy-list" id="strategyList">
-      <div style="font-family:var(--mono);font-size:10px;color:var(--dim);text-align:center;padding:20px">
-        config.yaml 설정 후 봇 시작
+    <!-- LOG -->
+    <div class="log-panel">
+      <div class="panel-header">
+        <div class="panel-title">🖥 시스템 로그</div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span class="panel-badge" id="logCount">0 entries</span>
+          <button class="icon-btn" onclick="clearLogs()">초기화</button>
+        </div>
+      </div>
+      <div class="log-tabs">
+        <button class="log-tab active" onclick="setLogFilter('all',this)">전체</button>
+        <button class="log-tab"        onclick="setLogFilter('trade',this)">거래</button>
+        <button class="log-tab"        onclick="setLogFilter('error',this)">오류</button>
+      </div>
+      <div class="log-wrap" id="logWrap">
+        <div class="empty-state" style="padding:24px">
+          <div class="empty-state-text">로그가 없습니다</div>
+        </div>
       </div>
     </div>
-  </div>
+
+  </div><!-- /middle-col -->
+
+  <!-- ── RIGHT COLUMN ───────────────────────────── -->
+  <div class="right-col">
+
+    <!-- Exchanges -->
+    <div class="card">
+      <div class="card-header">
+        <span>🔗 거래소 연결</span>
+        <span class="card-header-sub" id="exConnCount">0/3 연결됨</span>
+      </div>
+      <div class="exchange-row">
+        <div class="ex-left">
+          <div class="ex-logo kis">KIS</div>
+          <div><div class="ex-name">한국투자증권</div><div class="ex-sub">국내주식 · KRX</div></div>
+        </div>
+        <div class="ex-pill off" id="exKis">미연결</div>
+      </div>
+      <div class="exchange-row">
+        <div class="ex-left">
+          <div class="ex-logo upbit">UPB</div>
+          <div><div class="ex-name">업비트</div><div class="ex-sub">원화마켓 · KRW</div></div>
+        </div>
+        <div class="ex-pill off" id="exUpbit">미연결</div>
+      </div>
+      <div class="exchange-row">
+        <div class="ex-left">
+          <div class="ex-logo binance">BNB</div>
+          <div><div class="ex-name">바이낸스</div><div class="ex-sub">글로벌 · USDT</div></div>
+        </div>
+        <div class="ex-pill off" id="exBinance">미연결</div>
+      </div>
+    </div>
+
+    <!-- Market Hours -->
+    <div class="card">
+      <div class="card-header">🕐 시장 운영시간</div>
+      <div class="market-row">
+        <div>
+          <div class="market-name">KRX (코스피/코스닥)</div>
+          <div class="market-hours">평일 09:00 – 15:30 KST</div>
+        </div>
+        <div class="market-tag closed" id="mktKrx">확인 중</div>
+      </div>
+      <div class="market-row">
+        <div>
+          <div class="market-name">업비트</div>
+          <div class="market-hours">연중무휴 24/7</div>
+        </div>
+        <div class="market-tag always">운영 중</div>
+      </div>
+      <div class="market-row">
+        <div>
+          <div class="market-name">바이낸스</div>
+          <div class="market-hours">연중무휴 24/7</div>
+        </div>
+        <div class="market-tag always">운영 중</div>
+      </div>
+    </div>
+
+    <!-- Risk Gauge -->
+    <div class="card">
+      <div class="card-header">
+        <span>⚠️ 일일 손실 한도</span>
+        <span class="card-header-sub">한도: −2.0%</span>
+      </div>
+      <div class="risk-body">
+        <div class="risk-top">
+          <div class="risk-label">소진율</div>
+          <div class="risk-pct" id="riskPct">0%</div>
+        </div>
+        <div class="risk-track">
+          <div class="risk-fill" id="riskFill" style="width:0%"></div>
+        </div>
+        <div class="risk-labels">
+          <span>0%</span>
+          <span>50%</span>
+          <span>100%</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Active Strategies -->
+    <div class="card">
+      <div class="card-header">
+        <span>⚡ 활성 전략</span>
+        <span class="card-header-sub" id="stratCount">0개</span>
+      </div>
+      <div id="strategyList">
+        <div class="empty-state" style="padding:18px">
+          <div class="empty-state-text" style="font-size:11px">봇 시작 후 전략이 표시됩니다</div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /right-col -->
 </div>
 
-<div id="connBanner">⚠ WEBSOCKET DISCONNECTED — RECONNECTING...</div>
+<!-- ── TOAST STACK ──────────────────────────────── -->
+<div id="toastStack"></div>
+
+<!-- ── CONN BANNER ─────────────────────────────── -->
+<div id="connBanner">⚠ 웹소켓 연결 끊김 — 재연결 중...</div>
 
 <script>
-// ── WebSocket ─────────────────────────────────────
+// ── STATE ──────────────────────────────────────
+const DAILY_LOSS_LIMIT = 2.0;
+let allSignals   = [];
+let allLogs      = [];
+let signalFilter = 'all';
+let logFilter    = 'all';
+let lastData     = null;
+let lastUpdateTs = null;
+
+const pnlHistory = { labels: [], data: [] };
+
+// ── WEBSOCKET ───────────────────────────────────
 let ws, reconnectTimer;
-let buyCount = 0, sellCount = 0;
 
 function connect() {
   const proto = location.protocol === 'https:' ? 'wss' : 'ws';
   ws = new WebSocket(`${proto}://${location.host}/ws`);
-
-  ws.onopen = () => {
+  ws.onopen    = () => {
     document.getElementById('connBanner').style.display = 'none';
     clearTimeout(reconnectTimer);
   };
-
-  ws.onmessage = (e) => {
-    const data = JSON.parse(e.data);
-    updateDashboard(data);
-  };
-
-  ws.onclose = () => {
-    document.getElementById('connBanner').style.display = 'block';
+  ws.onmessage = e => updateDashboard(JSON.parse(e.data));
+  ws.onclose   = () => {
+    document.getElementById('connBanner').style.display = 'flex';
     reconnectTimer = setTimeout(connect, 3000);
   };
 }
 
-// ── 대시보드 업데이트 ──────────────────────────────
+// ── DASHBOARD UPDATE ────────────────────────────
 function updateDashboard(data) {
-  // 상태 표시
-  const running = data.running;
-  const dot = document.getElementById('statusDot');
-  const statusText = document.getElementById('statusText');
-  dot.className = 'dot ' + (running ? (data.mode === 'live' ? 'active' : 'paper') : '');
-  statusText.textContent = running ? (data.mode === 'live' ? 'LIVE' : 'PAPER') : 'STOPPED';
+  lastData     = data;
+  lastUpdateTs = Date.now();
 
-  // 모드 배지
-  const badge = document.getElementById('modeBadge');
-  badge.textContent = data.mode?.toUpperCase() || 'PAPER';
-  badge.className = 'mode-badge ' + (data.mode === 'live' ? 'live' : 'paper');
+  updateHeader(data);
+  updateStats(data);
+  updateExchanges(data.exchanges || {});
+  updateRisk(data.daily_pnl || 0);
+  updatePnlChart(data.daily_pnl || 0);
 
-  // 스탯
-  document.getElementById('sMode').textContent = data.mode?.toUpperCase() || '–';
-  document.getElementById('sTaskCount').textContent = data.task_count || 0;
+  // toast on new signal
+  const incoming = data.signals || [];
+  if (incoming.length && allSignals.length) {
+    const prevKey = allSignals[0]?.time + allSignals[0]?.symbol;
+    const newKey  = incoming[0]?.time  + incoming[0]?.symbol;
+    if (newKey !== prevKey && (incoming[0].action === 'BUY' || incoming[0].action === 'SELL')) {
+      showToast(incoming[0]);
+    }
+  }
 
-  const pnl = data.daily_pnl || 0;
-  const pnlEl = document.getElementById('sDailyPnl');
-  pnlEl.textContent = (pnl >= 0 ? '+' : '') + pnl.toFixed(2) + '%';
-  pnlEl.className = 'stat-value ' + (pnl > 0 ? 'green' : pnl < 0 ? 'red' : '');
+  allSignals = incoming;
+  allLogs    = data.logs || [];
 
-  // 거래소 연결
-  const exs = data.exchanges || {};
-  let exConnected = 0;
-  setEx('exKis', exs.kis); if (exs.kis) exConnected++;
-  setEx('exUpbit', exs.upbit); if (exs.upbit) exConnected++;
-  setEx('exBinance', exs.binance); if (exs.binance) exConnected++;
-  document.getElementById('sExCount').textContent = exConnected;
-
-  // 신호
-  const signals = data.signals || [];
-  updateSignals(signals);
-
-  // 로그
-  const logs = data.logs || [];
-  updateLogs(logs);
+  renderSignals();
+  renderLogs();
+  updateDistChart();
+  updateStrategyList(data.task_count || 0);
 }
 
-function setEx(id, connected) {
+// ── HEADER ──────────────────────────────────────
+function updateHeader(data) {
+  const { running, mode } = data;
+  const dot  = document.getElementById('statusDot');
+  dot.className = 'dot ' + (running ? (mode === 'live' ? 'active' : 'paper') : '');
+  document.getElementById('statusText').textContent =
+    running ? (mode === 'live' ? 'LIVE' : 'PAPER') : 'STOPPED';
+
+  const badge  = document.getElementById('modeBadge');
+  const toggle = document.getElementById('modeToggle');
+  badge.textContent = (mode || 'paper').toUpperCase();
+  badge.className   = 'mode-badge ' + (mode === 'live' ? 'live' : 'paper');
+  toggle.className  = 'toggle-switch ' + (mode === 'live' ? 'live' : '');
+}
+
+// ── STATS ───────────────────────────────────────
+function updateStats(data) {
+  const mode = data.mode || 'paper';
+  const pnl  = data.daily_pnl || 0;
+  const sigs = data.signals || [];
+
+  document.getElementById('sMode').textContent  = mode.toUpperCase();
+  document.getElementById('sMode').className    = 'stat-value ' + (mode === 'live' ? 'red' : 'blue');
+  document.getElementById('sTaskCount').textContent = data.task_count || 0;
+
+  const pnlEl = document.getElementById('sDailyPnl');
+  pnlEl.textContent = (pnl >= 0 ? '+' : '') + pnl.toFixed(2) + '%';
+  pnlEl.className   = 'stat-value ' + (pnl > 0 ? 'green' : pnl < 0 ? 'red' : '');
+
+  document.getElementById('sBuyCount').textContent  = sigs.filter(s => s.action === 'BUY').length;
+  document.getElementById('sSellCount').textContent = sigs.filter(s => s.action === 'SELL').length;
+}
+
+// ── EXCHANGES ───────────────────────────────────
+function updateExchanges(exs) {
+  setExPill('exKis',     exs.kis);
+  setExPill('exUpbit',   exs.upbit);
+  setExPill('exBinance', exs.binance);
+  const cnt = [exs.kis, exs.upbit, exs.binance].filter(Boolean).length;
+  document.getElementById('sExCount').textContent    = cnt;
+  document.getElementById('exConnCount').textContent = `${cnt}/3 연결됨`;
+}
+function setExPill(id, connected) {
   const el = document.getElementById(id);
-  if (connected) {
-    el.textContent = '● 연결됨';
-    el.className = 'ex-status connected';
+  el.textContent = connected ? '연결됨' : '미연결';
+  el.className   = 'ex-pill ' + (connected ? 'on' : 'off');
+}
+
+// ── RISK GAUGE ──────────────────────────────────
+function updateRisk(pnl) {
+  const pct  = Math.min(Math.max((-pnl / DAILY_LOSS_LIMIT) * 100, 0), 100);
+  const fill = document.getElementById('riskFill');
+  const pctEl = document.getElementById('riskPct');
+  fill.style.width = pct + '%';
+  fill.className   = 'risk-fill' + (pct >= 80 ? ' danger' : pct >= 50 ? ' warn' : '');
+  pctEl.textContent = pct.toFixed(0) + '%';
+  pctEl.style.color = pct >= 80 ? 'var(--red)' : pct >= 50 ? 'var(--yellow)' : 'var(--green)';
+}
+
+// ── MARKET HOURS ────────────────────────────────
+function updateMarketHours() {
+  const kst  = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Seoul' }));
+  const day  = kst.getDay();
+  const mins = kst.getHours() * 60 + kst.getMinutes();
+  const isOpen = day >= 1 && day <= 5 && mins >= 540 && mins < 930;
+
+  const el = document.getElementById('mktKrx');
+  if (isOpen) {
+    el.textContent = '운영 중';
+    el.className   = 'market-tag open';
   } else {
-    el.textContent = '● 미연결';
-    el.className = 'ex-status disconnected';
+    const msg = day === 0 || day === 6 ? '주말 휴장'
+              : mins < 540 ? '장 시작 전'
+              : '장 마감';
+    el.textContent = msg;
+    el.className   = 'market-tag closed';
   }
 }
 
-function updateSignals(signals) {
+// ── STRATEGY LIST ────────────────────────────────
+function updateStrategyList(count) {
+  const el = document.getElementById('strategyList');
+  document.getElementById('stratCount').textContent = count + '개';
+  if (!count) {
+    el.innerHTML = `<div class="empty-state" style="padding:18px"><div class="empty-state-text" style="font-size:11px">봇 시작 후 전략이 표시됩니다</div></div>`;
+    return;
+  }
+  // 신호 목록에서 고유 종목+거래소 추출해서 전략 표시
+  const seen = new Set();
+  const items = allSignals.filter(s => {
+    const key = s.exchange + s.symbol;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  }).slice(0, 8);
+
+  if (!items.length) return;
+  el.innerHTML = items.map(s => `
+    <div class="strat-row">
+      <div class="strat-accent"></div>
+      <div class="strat-info">
+        <div class="strat-symbol">${s.symbol}</div>
+        <div class="strat-detail">${s.exchange}</div>
+      </div>
+      <span class="strat-type">${s.action}</span>
+    </div>`).join('');
+}
+
+// ── SIGNAL RENDERING ────────────────────────────
+function setSignalFilter(filter, btn) {
+  signalFilter = filter;
+  document.querySelectorAll('.filter-bar .filter-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderSignals();
+}
+
+function renderSignals() {
+  const query = document.getElementById('signalSearch').value.toLowerCase();
+  const sigs  = allSignals.filter(s => {
+    const mf = signalFilter === 'all' || s.action === signalFilter;
+    const mq = !query || s.symbol.toLowerCase().includes(query) || s.exchange.toLowerCase().includes(query);
+    return mf && mq;
+  });
+
+  document.getElementById('signalCount').textContent = sigs.length + ' signals';
   const tbody = document.getElementById('signalBody');
-  document.getElementById('signalCount').textContent = signals.length + ' signals';
 
-  let buys = 0, sells = 0;
-
-  if (!signals.length) {
-    tbody.innerHTML = '<tr class="empty-row"><td colspan="7">── 신호 대기 중 ──</td></tr>';
+  if (!sigs.length) {
+    tbody.innerHTML = `<tr><td colspan="7"><div class="empty-state">
+      <div class="empty-state-icon">📭</div>
+      <div class="empty-state-text">${query ? '검색 결과 없음' : '신호 대기 중...'}</div>
+    </div></td></tr>`;
     return;
   }
 
-  tbody.innerHTML = signals.map(s => {
-    if (s.action === 'BUY') buys++;
-    if (s.action === 'SELL') sells++;
-    const conf = parseFloat(s.confidence) || 0;
-    const color = s.action === 'BUY' ? '#00e5a0' : s.action === 'SELL' ? '#ff4560' : '#4a6080';
+  tbody.innerHTML = sigs.map(s => {
+    const conf  = parseFloat(s.confidence) || 0;
+    const color = s.action === 'BUY' ? 'var(--green)' : s.action === 'SELL' ? 'var(--red)' : 'var(--dim)';
     return `<tr>
-      <td style="color:var(--muted)">${s.time}</td>
-      <td style="color:var(--blue)">${s.exchange}</td>
+      <td style="color:var(--dim);font-variant-numeric:tabular-nums">${s.time}</td>
+      <td><span class="badge-ex">${s.exchange}</span></td>
       <td style="font-weight:700">${s.symbol}</td>
-      <td class="action-${s.action.toLowerCase()}">${s.action}</td>
-      <td>${Number(s.price).toLocaleString()}</td>
+      <td><span class="badge badge-${s.action.toLowerCase()}">${s.action}</span></td>
+      <td class="price-cell">${Number(s.price).toLocaleString()}</td>
       <td>
-        <div class="confidence-bar">
+        <div class="conf-wrap">
           <div class="conf-track"><div class="conf-fill" style="width:${conf}%;background:${color}"></div></div>
-          <span style="color:${color};font-size:10px">${s.confidence}</span>
+          <span class="conf-text" style="color:${color}">${s.confidence}</span>
         </div>
       </td>
-      <td style="color:var(--muted);font-size:10px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.reason}</td>
+      <td style="color:var(--muted);max-width:150px;overflow:hidden;text-overflow:ellipsis">${s.reason}</td>
     </tr>`;
   }).join('');
-
-  document.getElementById('sBuyCount').textContent = buys;
-  document.getElementById('sSellCount').textContent = sells;
 }
 
-function updateLogs(logs) {
-  const wrap = document.getElementById('logWrap');
+// ── LOG RENDERING ───────────────────────────────
+function setLogFilter(filter, btn) {
+  logFilter = filter;
+  document.querySelectorAll('.log-tab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderLogs();
+}
+
+function clearLogs() { allLogs = []; renderLogs(); }
+
+function renderLogs() {
+  const logs = allLogs.filter(l => {
+    if (logFilter === 'trade') return ['BUY','SELL','PAPER'].includes(l.level);
+    if (logFilter === 'error') return ['ERROR','WARN'].includes(l.level);
+    return true;
+  });
+
   document.getElementById('logCount').textContent = logs.length + ' entries';
+  const wrap = document.getElementById('logWrap');
+
+  if (!logs.length) {
+    wrap.innerHTML = `<div class="empty-state" style="padding:24px"><div class="empty-state-text">로그가 없습니다</div></div>`;
+    return;
+  }
 
   wrap.innerHTML = logs.map(l => `
     <div class="log-entry">
@@ -726,36 +1077,181 @@ function updateLogs(logs) {
       <span class="log-level ${l.level}">${l.level}</span>
       <span class="log-symbol">${l.symbol || ''}</span>
       <span class="log-msg">${l.message}</span>
-    </div>
-  `).join('');
+    </div>`).join('');
 }
 
-// ── 봇 제어 ───────────────────────────────────────
+// ── CHARTS ──────────────────────────────────────
+Chart.defaults.font.family = "'Pretendard', sans-serif";
+
+// P&L Line Chart
+const pnlCtx   = document.getElementById('pnlChart').getContext('2d');
+const pnlChart = new Chart(pnlCtx, {
+  type: 'line',
+  data: {
+    labels: pnlHistory.labels,
+    datasets: [{
+      label: 'P&L (%)',
+      data: pnlHistory.data,
+      borderColor: '#2563eb',
+      backgroundColor: 'rgba(37,99,235,0.07)',
+      borderWidth: 2,
+      pointRadius: 0, pointHoverRadius: 4,
+      fill: true, tension: 0.4,
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    animation: { duration: 300 },
+    interaction: { mode: 'index', intersect: false },
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        backgroundColor: '#fff',
+        borderColor: '#e2e8f0', borderWidth: 1,
+        titleColor: '#64748b', bodyColor: '#0f172a',
+        bodyFont: { weight: '700', family: "'Pretendard'" },
+        callbacks: { label: ctx => ' ' + (ctx.parsed.y >= 0 ? '+' : '') + ctx.parsed.y.toFixed(2) + '%' }
+      }
+    },
+    scales: {
+      x: {
+        grid: { display: false },
+        ticks: { font: { size: 10, family: "'Pretendard'" }, color: '#94a3b8', maxTicksLimit: 7 }
+      },
+      y: {
+        grid: { color: '#f1f5f9' },
+        ticks: {
+          font: { size: 10, family: "'Pretendard'" }, color: '#94a3b8',
+          callback: v => (v >= 0 ? '+' : '') + v.toFixed(1) + '%'
+        }
+      }
+    }
+  }
+});
+
+function updatePnlChart(pnl) {
+  const now   = new Date();
+  const label = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+
+  if (!pnlHistory.labels.length || pnlHistory.labels.at(-1) !== label) {
+    pnlHistory.labels.push(label);
+    pnlHistory.data.push(pnl);
+    if (pnlHistory.labels.length > 60) { pnlHistory.labels.shift(); pnlHistory.data.shift(); }
+  } else {
+    pnlHistory.data[pnlHistory.data.length - 1] = pnl;
+  }
+
+  const color = pnl >= 0 ? '#2563eb' : '#dc2626';
+  const bg    = pnl >= 0 ? 'rgba(37,99,235,0.07)' : 'rgba(220,38,38,0.07)';
+  pnlChart.data.datasets[0].borderColor     = color;
+  pnlChart.data.datasets[0].backgroundColor = bg;
+  pnlChart.update('active');
+}
+
+// Signal Distribution Donut
+const distCtx   = document.getElementById('distChart').getContext('2d');
+const distChart = new Chart(distCtx, {
+  type: 'doughnut',
+  data: {
+    labels: ['매수 (BUY)', '매도 (SELL)', '홀드 (HOLD)'],
+    datasets: [{
+      data: [0, 0, 0],
+      backgroundColor: ['#ecfdf5', '#fef2f2', '#f8fafc'],
+      borderColor:     ['#059669', '#dc2626', '#cbd5e1'],
+      borderWidth: 2, hoverBorderWidth: 3,
+    }]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    cutout: '65%',
+    animation: { duration: 400 },
+    plugins: {
+      legend: {
+        position: 'right',
+        labels: { font: { size: 11, weight: '600', family: "'Pretendard'" }, color: '#334155', padding: 14, boxWidth: 10, borderRadius: 3 }
+      },
+      tooltip: {
+        backgroundColor: '#fff', borderColor: '#e2e8f0', borderWidth: 1,
+        titleColor: '#64748b', bodyColor: '#0f172a',
+        bodyFont: { weight: '700', family: "'Pretendard'" },
+      }
+    }
+  }
+});
+
+function updateDistChart() {
+  const buys  = allSignals.filter(s => s.action === 'BUY').length;
+  const sells = allSignals.filter(s => s.action === 'SELL').length;
+  const holds = allSignals.filter(s => s.action === 'HOLD').length;
+  distChart.data.datasets[0].data = [buys, sells, holds];
+  distChart.update('active');
+}
+
+function setChartTab(tab, btn) {
+  document.querySelectorAll('.chart-tab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('pnlChart').style.display  = tab === 'pnl'  ? 'block' : 'none';
+  document.getElementById('distChart').style.display = tab === 'dist' ? 'block' : 'none';
+  if (tab === 'pnl')  pnlChart.resize();
+  if (tab === 'dist') distChart.resize();
+}
+
+// ── TOAST ───────────────────────────────────────
+function showToast(signal) {
+  const isBuy = signal.action === 'BUY';
+  const el    = document.createElement('div');
+  el.className = `toast ${signal.action.toLowerCase()}`;
+  el.innerHTML = `
+    <div class="toast-header">
+      <span class="toast-icon">${isBuy ? '📈' : '📉'}</span>
+      <span class="toast-title" style="color:${isBuy ? 'var(--green)' : 'var(--red)'}">${signal.action} — ${signal.symbol}</span>
+      <span class="toast-time">${signal.time}</span>
+    </div>
+    <div class="toast-body">${signal.exchange} · ${Number(signal.price).toLocaleString()}원 · 신뢰도 ${signal.confidence}</div>`;
+  document.getElementById('toastStack').prepend(el);
+  setTimeout(() => {
+    el.style.animation = 'toastOut 0.3s ease forwards';
+    el.addEventListener('animationend', () => el.remove(), { once: true });
+  }, 4500);
+}
+
+// ── MODE TOGGLE ─────────────────────────────────
+async function toggleMode() {
+  const cur = lastData?.mode || 'paper';
+  const nxt = cur === 'paper' ? 'live' : 'paper';
+  if (nxt === 'live' && !confirm('⚠️ 실거래 모드로 전환합니다.\n실제 자금이 사용됩니다. 계속하시겠습니까?')) return;
+  try { await fetch(`/api/mode/${nxt}`, { method: 'POST' }); } catch(e) { console.error(e); }
+}
+
+// ── BOT ACTIONS ─────────────────────────────────
 async function botAction(action) {
   try {
-    const res = await fetch(`/api/bot/${action}`, { method: 'POST' });
+    const res  = await fetch(`/api/bot/${action}`, { method: 'POST' });
     const data = await res.json();
     console.log(data.message);
-  } catch(e) {
-    console.error(e);
-  }
+  } catch(e) { console.error(e); }
 }
 
-// ── 시계 ─────────────────────────────────────────
+// ── CLOCK & INTERVALS ───────────────────────────
 function updateClock() {
-  const now = new Date();
-  const h = String(now.getHours()).padStart(2, '0');
-  const m = String(now.getMinutes()).padStart(2, '0');
-  const s = String(now.getSeconds()).padStart(2, '0');
-  document.getElementById('clock').textContent = `${h}:${m}:${s}`;
+  const n = new Date();
+  document.getElementById('clock').textContent =
+    `${String(n.getHours()).padStart(2,'0')}:${String(n.getMinutes()).padStart(2,'0')}:${String(n.getSeconds()).padStart(2,'0')}`;
 }
-setInterval(updateClock, 1000);
+
+function updateLastUpdate() {
+  if (!lastUpdateTs) return;
+  const sec = Math.floor((Date.now() - lastUpdateTs) / 1000);
+  document.getElementById('lastUpdate').textContent =
+    sec < 5 ? '방금 업데이트' : `${sec}초 전`;
+}
+
+setInterval(() => { updateClock(); updateMarketHours(); updateLastUpdate(); }, 1000);
 updateClock();
+updateMarketHours();
 
-// ── 초기화 ───────────────────────────────────────
+// ── INIT ────────────────────────────────────────
 connect();
-
-// 최초 상태 폴링 (WS 연결 전)
 fetch('/api/status').then(r => r.json()).then(updateDashboard).catch(() => {});
 </script>
 </body>

@@ -84,7 +84,7 @@ class KISExchange:
         rows = resp.json().get("output2", [])
         df = pd.DataFrame(rows)
         if df.empty:
-            return df
+            return pd.DataFrame(columns=["date", "open", "high", "low", "close", "volume"])
         df = df.rename(columns={
             "stck_bsop_date": "date",
             "stck_oprc": "open",

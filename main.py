@@ -80,9 +80,11 @@ async def start_bot():
 
 @app.post("/api/bot/stop")
 async def stop_bot():
+    global bot_task
     bot.stop()
     if bot_task:
         bot_task.cancel()
+        bot_task = None
     return {"ok": True, "message": "봇 중지됨"}
 
 

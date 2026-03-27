@@ -107,7 +107,7 @@ class TradingBot:
         symbol = task["symbol"]
         interval = task["interval"]
 
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
 
         if exchange == "kis" and self.kis:
             period_map = {"1d": "D", "1w": "W", "1m": "M"}
@@ -169,7 +169,7 @@ class TradingBot:
     async def _execute_order(self, signal: Signal, task: dict):
         exchange = task["exchange"]
         amount = task["amount"]
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
 
         if exchange == "kis" and self.kis:
             qty = max(1, int(amount / signal.price))

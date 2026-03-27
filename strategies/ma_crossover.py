@@ -31,7 +31,7 @@ class MACrossoverStrategy(BaseStrategy):
             gap_pct = abs(curr_short - curr_long) / curr_long * 100
             confidence = min(gap_pct / 2, 1.0)
             return Signal("BUY", self.symbol, price,
-                          f"골든크로스 (MA{short}>{MA{long_}), gap={gap_pct:.2f}%", confidence)
+                          f"골든크로스 (MA{short}>MA{long_}), gap={gap_pct:.2f}%", confidence)
 
         # 데드크로스: 이전엔 단기 > 장기, 현재 단기 < 장기
         if prev_short >= prev_long and curr_short < curr_long:
