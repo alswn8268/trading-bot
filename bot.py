@@ -34,7 +34,7 @@ class TradingBot:
         self.positions: dict[str, dict] = {}
 
         # 손익 / 거래 통계
-        self.daily_pnl: float = 0.0       # 실현 손익 합산 (%)
+        self.daily_pnl: float = 0.0
         self.realized_pnl: float = 0.0
         self.trade_count: int = 0
 
@@ -135,32 +135,30 @@ class TradingBot:
 
     # ── 포지션 관리 ──────────────────────────────────
     def _enter_position(self, signal: Signal, task: dict):
-        """BUY 신호 → 포지션 진입 (평단가 계산 포함)"""
         key    = f"{task['exchange']}:{signal.symbol}"
         amount = task["amount"]
         qty    = amount / signal.price if signal.price > 0 else 0
 
         if key in self.positions:
             pos = self.positions[key]
-            total_qty      = pos["qty"] + qty
+            total_qty = pos["qty"] + qty
             pos["avg_price"] = (pos["avg_price"] * pos["qty"] + signal.price * qty) / total_qty
             pos["qty"]       = total_qty
             pos["invested"] += amount
         else:
             self.positions[key] = {
-                "symbol":        signal.symbol,
-                "exchange":      task["exchange"].upper(),
-                "qty":           qty,
-                "avg_price":     signal.price,
-                "current_price": signal.price,
-                "invested":      amount,
+                "symbol":         signal.symbol,
+                "exchange":       task["exchange"].upper(),
+                "qty":            qty,
+                "avg_price":      signal.price,
+                "current_price":  signal.price,
+                "invested":       amount,
                 "unrealized_pnl": 0.0,
-                "entry_time":    datetime.now().strftime("%H:%M:%S"),
+                "entry_time":     datetime.now().strftime("%H:%M:%S"),
             }
         self.trade_count += 1
 
     def _exit_position(self, signal: Signal, task: dict) -> float:
-        """SELL 신호 → 포지션 청산 + 실현 손익 계산"""
         key = f"{task['exchange']}:{signal.symbol}"
         if key not in self.positions:
             return 0.0
@@ -178,21 +176,7 @@ class TradingBot:
                   f"청산 완료 | 진입 {avg:,.0f} → 현재 {signal.price:,.0f} | 손익 {pnl_pct:+.2f}%")
         return pnl_pct
 
-    def _record_trade_to_db(self, signal: Signal, task: dict, pnl: float = 0.0):
-        db.record_trade(
-            exchange=task["exchange"],
-            symbol=signal.symbol,
-            action=signal.action,
-            price=signal.price,
-            amount=task["amount"],
-            pnl=pnl,
-            reason=signal.reason,
-            confidence=signal.confidence,
-            mode=self.mode,
-        )
-
     def _update_position_price(self, task: dict, current_price: float):
-        """사이클마다 보유 포지션 현재가·미실현손익 갱신"""
         key = f"{task['exchange']}:{task['symbol']}"
         if key not in self.positions:
             return
@@ -202,7 +186,6 @@ class TradingBot:
         pos["unrealized_pnl"] = (current_price - avg) / avg * 100 if avg > 0 else 0.0
 
     def _check_risk_exit(self, task: dict, current_price: float) -> Optional[Signal]:
-        """손절/익절 조건 체크 → 강제 SELL Signal 반환"""
         key = f"{task['exchange']}:{task['symbol']}"
         if key not in self.positions:
             return None
@@ -224,7 +207,6 @@ class TradingBot:
 
     # ── 메인 사이클 ──────────────────────────────────
     async def run_cycle(self):
-        """단일 분석 사이클: OHLCV 조회 → 리스크 체크 → 신호 처리"""
         for task in self.tasks:
             try:
                 df = await self._fetch_ohlcv(task)
@@ -234,16 +216,13 @@ class TradingBot:
 
                 current_price = float(df["close"].iloc[-1])
 
-                # 보유 포지션 현재가 갱신
                 self._update_position_price(task, current_price)
 
-                # 손절/익절 우선 체크
                 forced = self._check_risk_exit(task, current_price)
                 if forced:
                     await self._process_signal(forced, task)
                     continue
 
-                # 전략 신호 분석
                 signal = task["strategy"].analyze(df)
                 await self._process_signal(signal, task)
 
@@ -251,7 +230,6 @@ class TradingBot:
                 self._log("ERROR", task["symbol"], f"오류: {e}")
 
     async def _process_signal(self, signal: Signal, task: dict):
-        """신호 기록 → 리스크 한도 → 포지션 관리 → 주문 실행"""
         self.signals.insert(0, {
             "time":       datetime.now().strftime("%H:%M:%S"),
             "exchange":   task["exchange"].upper(),
@@ -266,7 +244,6 @@ class TradingBot:
         if signal.action == "HOLD":
             return
 
-        # 일일 손실 한도 초과 시 주문 차단
         if self.daily_pnl < -self.risk["daily_loss_limit"]:
             self._log("WARN", signal.symbol,
                       f"일일 손실 한도 초과 ({self.daily_pnl:.2f}%) — 주문 차단")
@@ -276,18 +253,24 @@ class TradingBot:
                   f"{signal.action} @ {signal.price:,.0f} | {signal.reason} | "
                   f"신뢰도 {signal.confidence:.0%}")
 
-        # 포지션 진입/청산 기록 (paper·live 공통)
         if signal.action == "BUY":
             self._enter_position(signal, task)
-            self._record_trade_to_db(signal, task)
+            db.record_trade(
+                exchange=task["exchange"], symbol=signal.symbol,
+                action="BUY", price=signal.price, amount=task["amount"],
+                reason=signal.reason, confidence=signal.confidence, mode=self.mode,
+            )
             self.notifier.on_signal(
                 signal.action, signal.symbol, signal.price,
                 signal.reason, signal.confidence, task["exchange"].upper()
             )
         elif signal.action == "SELL":
             pnl = self._exit_position(signal, task)
-            self._record_trade_to_db(signal, task, pnl)
-            # 손절/익절로 인한 청산인지 확인
+            db.record_trade(
+                exchange=task["exchange"], symbol=signal.symbol,
+                action="SELL", price=signal.price, amount=task["amount"],
+                pnl=pnl, reason=signal.reason, confidence=signal.confidence, mode=self.mode,
+            )
             if "손절" in signal.reason or "익절" in signal.reason:
                 self.notifier.on_risk_exit(
                     signal.symbol, signal.price, signal.reason, task["exchange"].upper()
@@ -298,14 +281,12 @@ class TradingBot:
                     signal.reason, signal.confidence, task["exchange"].upper()
                 )
 
-        # 모의 모드: 실제 주문 없이 반환
         if self.mode == "paper":
             self._log("PAPER", signal.symbol,
                       f"[모의] {signal.action} @ {signal.price:,.0f} (실제 주문 없음)")
             await self._notify_ws()
             return
 
-        # 실거래 주문
         try:
             await self._execute_order(signal, task)
         except Exception as e:
@@ -348,7 +329,7 @@ class TradingBot:
         while self.running:
             await self.run_cycle()
             await self._notify_ws()
-            await asyncio.sleep(60)
+            await asyncio.sleep(300)  # 5분 사이클
 
     def stop(self):
         self.running = False
