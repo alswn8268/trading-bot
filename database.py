@@ -77,6 +77,7 @@ def get_trades(
     symbol: Optional[str] = None,
     action: Optional[str] = None,
     since_date: Optional[str] = None,   # "YYYY-MM-DD"
+    mode: Optional[str] = None,
     limit: int = 200,
 ) -> list[dict]:
     conditions, params = [], []
@@ -88,6 +89,8 @@ def get_trades(
         conditions.append("action = ?"); params.append(action.upper())
     if since_date:
         conditions.append("timestamp >= ?"); params.append(since_date)
+    if mode:
+        conditions.append("mode = ?"); params.append(mode.lower())
 
     where = ("WHERE " + " AND ".join(conditions)) if conditions else ""
     sql   = f"SELECT * FROM trades {where} ORDER BY timestamp DESC LIMIT ?"

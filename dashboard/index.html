@@ -865,35 +865,6 @@ tbody td {
   <!-- ── RIGHT COLUMN ───────────────────────────── -->
   <div class="right-col">
 
-    <!-- Exchanges -->
-    <div class="card">
-      <div class="card-header">
-        <span>🔗 거래소 연결</span>
-        <span class="card-header-sub" id="exConnCount">0/3 연결됨</span>
-      </div>
-      <div class="exchange-row">
-        <div class="ex-left">
-          <div class="ex-logo kis">KIS</div>
-          <div><div class="ex-name">한국투자증권</div><div class="ex-sub">국내주식 · KRX</div></div>
-        </div>
-        <div class="ex-pill off" id="exKis">미연결</div>
-      </div>
-      <div class="exchange-row">
-        <div class="ex-left">
-          <div class="ex-logo upbit">UPB</div>
-          <div><div class="ex-name">업비트</div><div class="ex-sub">원화마켓 · KRW</div></div>
-        </div>
-        <div class="ex-pill off" id="exUpbit">미연결</div>
-      </div>
-      <div class="exchange-row">
-        <div class="ex-left">
-          <div class="ex-logo binance">BNB</div>
-          <div><div class="ex-name">바이낸스</div><div class="ex-sub">글로벌 · USDT</div></div>
-        </div>
-        <div class="ex-pill off" id="exBinance">미연결</div>
-      </div>
-    </div>
-
     <!-- Risk Gauge -->
     <div class="card">
       <div class="card-header">
@@ -1082,6 +1053,15 @@ function updateHeader(data) {
   badge.textContent = (mode || 'paper').toUpperCase();
   badge.className   = 'mode-badge ' + (mode === 'live' ? 'live' : 'paper');
   toggle.className  = 'toggle-switch ' + (mode === 'live' ? 'live' : '');
+
+  // 모드 전환 시 신호 캐시 클리어
+  const prevMode = updateHeader._prevMode;
+  if (prevMode && prevMode !== mode) {
+    allSignals = [];
+    renderSignals();
+    loadTrades();
+  }
+  updateHeader._prevMode = mode;
 }
 
 // ── STATS ───────────────────────────────────────
@@ -1195,23 +1175,95 @@ function updateMarketHours() {
 }
 
 // ── STRATEGY LIST ────────────────────────────────
+const STRATEGY_OPTIONS = [
+  {value:'bollinger_short', label:'볼린저 단타'},
+  {value:'rsi_short',       label:'RSI 단타'},
+  {value:'ma_crossover_short', label:'MA 크로스 단타'},
+  {value:'volatility_breakout', label:'변동성 돌파'},
+  {value:'bollinger',       label:'볼린저'},
+  {value:'rsi',             label:'RSI'},
+  {value:'ma_crossover',    label:'MA 크로스'},
+  {value:'macd',            label:'MACD'},
+];
+const INTERVAL_OPTIONS = ['1m','3m','5m','15m','30m','1h','4h','1d'];
+
 function updateStrategyList(data) {
-  const tasks = data.tasks || [];
-  const el    = document.getElementById('strategyList');
+  const tasks = (data.tasks || []).filter(t => {
+    const exs = data.exchanges || {};
+    return exs[t.exchange] === true;
+  });
+  const el = document.getElementById('strategyList');
   document.getElementById('stratCount').textContent = tasks.length + '개';
+
   if (!tasks.length) {
     el.innerHTML = `<div class="empty-state" style="padding:18px"><div class="empty-state-text" style="font-size:11px">봇 시작 후 전략이 표시됩니다</div></div>`;
     return;
   }
-  el.innerHTML = tasks.map(t => `
-    <div class="strat-row">
+
+  el.innerHTML = tasks.map((t, i) => {
+    const realIdx = (data.tasks || []).indexOf(t);
+    const stratOpts = STRATEGY_OPTIONS.map(o =>
+      `<option value="${o.value}" ${t.strategy.toLowerCase().replace('strategy','') === o.value || t.strategy === o.value ? 'selected' : ''}>${o.label}</option>`
+    ).join('');
+    const intOpts = INTERVAL_OPTIONS.map(o =>
+      `<option value="${o}" ${t.interval === o ? 'selected' : ''}>${o}</option>`
+    ).join('');
+    return `
+    <div class="strat-row" id="strat-row-${realIdx}">
       <div class="strat-accent"></div>
       <div class="strat-info">
         <div class="strat-symbol">${t.symbol}</div>
         <div class="strat-detail">${t.exchange.toUpperCase()} · ${Number(t.amount).toLocaleString()}원 · ${t.interval}</div>
       </div>
       <span class="strat-type">${t.strategy.replace('Strategy','')}</span>
-    </div>`).join('');
+      <button class="icon-btn" style="margin-left:6px" onclick="toggleStratEdit(${realIdx})">수정</button>
+    </div>
+    <div class="strat-edit-form" id="strat-edit-${realIdx}" style="display:none">
+      <div style="padding:10px 13px;background:var(--surface2);border-bottom:1px solid var(--border);display:flex;flex-direction:column;gap:7px">
+        <div class="bt-row">
+          <span class="bt-label">전략</span>
+          <select class="bt-input" id="seStrat-${realIdx}">${stratOpts}</select>
+        </div>
+        <div class="bt-row">
+          <span class="bt-label">금액(원)</span>
+          <input class="bt-input" id="seAmount-${realIdx}" type="number" value="${t.amount}" min="1000" step="1000">
+        </div>
+        <div class="bt-row">
+          <span class="bt-label">봉 단위</span>
+          <select class="bt-input" id="seInterval-${realIdx}">${intOpts}</select>
+        </div>
+        <div style="display:flex;gap:6px">
+          <button class="btn-bt" style="flex:1" onclick="saveStratEdit(${realIdx})">저장</button>
+          <button class="icon-btn" style="flex:1;padding:5px" onclick="toggleStratEdit(${realIdx})">취소</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function toggleStratEdit(idx) {
+  const el = document.getElementById(`strat-edit-${idx}`);
+  if (!el) return;
+  el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+
+async function saveStratEdit(idx) {
+  const strategy = document.getElementById(`seStrat-${idx}`)?.value;
+  const amount   = parseFloat(document.getElementById(`seAmount-${idx}`)?.value || '5000');
+  const interval = document.getElementById(`seInterval-${idx}`)?.value;
+  if (!strategy) return;
+  try {
+    const res = await fetch(`/api/tasks/${idx}`, {
+      method: 'PUT',
+      headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({strategy, amount, interval})
+    });
+    if (res.ok) {
+      toggleStratEdit(idx);
+      const data = await fetch('/api/status').then(r => r.json());
+      updateStrategyList(data);
+    }
+  } catch(e) { console.error(e); }
 }
 
 // ── SIGNAL RENDERING ────────────────────────────
@@ -1538,6 +1590,8 @@ function setTradeDateFilter(range, btn) {
 
 async function loadTrades() {
   const params = new URLSearchParams({ limit: 200 });
+  const curMode = lastData?.mode || 'paper';
+  params.set('mode', curMode);
   if (tradeFilter !== 'all') params.set('action', tradeFilter);
 
   const symbol = document.getElementById('tradeSearch')?.value.trim().toUpperCase();

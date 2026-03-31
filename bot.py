@@ -362,6 +362,18 @@ class TradingBot:
         if self._ws_callback:
             await self._ws_callback()
 
+    def update_task(self, idx: int, strategy_name: str, amount: float, interval: str) -> bool:
+        if idx < 0 or idx >= len(self.tasks):
+            return False
+        from strategies import get_strategy
+        params = {**self.cfg.get("strategies", {}).get(strategy_name, {}), "interval": interval}
+        task = self.tasks[idx]
+        task["strategy"] = get_strategy(strategy_name, task["symbol"], params)
+        task["amount"]   = amount
+        task["interval"] = interval
+        self._log("INFO", task["symbol"], f"전략 변경: {strategy_name} / {interval} / {amount:,.0f}원")
+        return True
+
     def get_status(self) -> dict:
         today = datetime.now().strftime("%Y-%m-%d")
         today_stats = db.get_stats(since_date=today)

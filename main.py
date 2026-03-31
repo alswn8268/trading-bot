@@ -122,9 +122,20 @@ async def reset_stats():
     return {"ok": True, "message": "통계 초기화됨"}
 
 
+@app.put("/api/tasks/{idx}")
+async def update_task(idx: int, body: dict):
+    strategy_name = body.get("strategy", "")
+    amount = float(body.get("amount", 5000))
+    interval = body.get("interval", "15m")
+    ok = bot.update_task(idx, strategy_name, amount, interval)
+    if not ok:
+        return JSONResponse({"error": "인덱스 범위 초과"}, status_code=400)
+    return {"ok": True}
+
+
 @app.get("/api/trades")
-async def get_trades(limit: int = 200, action: str = None, symbol: str = None, since: str = None):
-    trades = db.get_trades(action=action, symbol=symbol, since_date=since, limit=limit)
+async def get_trades(limit: int = 200, action: str = None, symbol: str = None, since: str = None, mode: str = None):
+    trades = db.get_trades(action=action, symbol=symbol, since_date=since, mode=mode, limit=limit)
     return {"trades": trades}
 
 
