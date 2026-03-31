@@ -817,9 +817,7 @@ tbody td {
               <td><select class="cf-select" id="cfMode"     onchange="applyColFilters()">
                 <option value="">전체</option><option value="paper">PAPER</option><option value="live">LIVE</option>
               </select></td>
-              <td><select class="cf-select" id="cfExchange" onchange="applyColFilters()">
-                <option value="">전체</option><option value="upbit">UPBIT</option><option value="kis">KIS</option><option value="binance">BINANCE</option>
-              </select></td>
+              <td></td>
               <td><input  class="cf-input"  id="cfSymbol2"  placeholder="종목"  oninput="applyColFilters()"></td>
               <td><select class="cf-select" id="cfAction2"  onchange="applyColFilters()">
                 <option value="">전체</option><option value="BUY">BUY</option><option value="SELL">SELL</option>
@@ -971,8 +969,6 @@ tbody td {
           <span class="bt-label">거래소</span>
           <select id="btExchange" class="bt-input">
             <option value="upbit">Upbit</option>
-            <option value="binance">Binance</option>
-            <option value="kis">KIS</option>
           </select>
         </div>
         <div class="bt-row">
@@ -1659,7 +1655,6 @@ function _tradeResult(t) {
 function applyColFilters() {
   const cfTime     = (document.getElementById('cfTime')?.value     || '').toLowerCase();
   const cfMode     = (document.getElementById('cfMode')?.value     || '').toLowerCase();
-  const cfExchange = (document.getElementById('cfExchange')?.value || '').toLowerCase();
   const cfSymbol2  = (document.getElementById('cfSymbol2')?.value  || '').toUpperCase();
   const cfAction2  = (document.getElementById('cfAction2')?.value  || '').toUpperCase();
   const cfResult   = (document.getElementById('cfResult')?.value   || '');
@@ -1669,7 +1664,6 @@ function applyColFilters() {
     const time = (t.timestamp?.slice(11,19) || '').toLowerCase();
     if (cfTime     && !time.includes(cfTime))                      return false;
     if (cfMode     && (t.mode||'paper').toLowerCase() !== cfMode)  return false;
-    if (cfExchange && (t.exchange||'').toLowerCase() !== cfExchange) return false;
     if (cfSymbol2  && !(t.symbol||'').includes(cfSymbol2))         return false;
     if (cfAction2  && t.action !== cfAction2)                      return false;
     if (cfResult   && _tradeResult(t) !== cfResult)                return false;
