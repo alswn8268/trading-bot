@@ -37,7 +37,7 @@ trading:
   # 코인 (업비트) — 단타 설정
   upbit_coins:
     - symbol: "KRW-BTC"
-      strategy: "volatility_breakout"   # 일 단타: 당일 매수 → 익일 시가 매도
+      strategy: "bollinger_short"       # 15분봉 볼린저 단타
       amount: 5000
     - symbol: "KRW-ETH"
       strategy: "bollinger_short"       # 15분봉 볼린저 단타
@@ -57,10 +57,10 @@ trading:
 
 # ── 리스크 관리 ──────────────────────────────
 risk:
-  max_loss_pct: 3.0      # 종목당 최대 손실 % (손절)
-  take_profit_pct: 5.0   # 목표 수익 % (익절)
+  max_loss_pct: 1.0      # 종목당 최대 손실 % (손절) — 단타용 타이트
+  take_profit_pct: 1.5   # 목표 수익 % (익절) — 단타용 타이트
   max_positions: 5       # 최대 동시 보유 종목 수
-  daily_loss_limit: 2.0  # 일일 최대 손실 % (이 넘으면 봇 중단)
+  daily_loss_limit: 3.0  # 일일 최대 손실 % (이 넘으면 봇 중단)
 
 # ── 전략별 파라미터 ──────────────────────────
 strategies:

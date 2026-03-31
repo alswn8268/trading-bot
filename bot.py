@@ -339,7 +339,7 @@ class TradingBot:
         while self.running:
             await self.run_cycle()
             await self._notify_ws()
-            await asyncio.sleep(300)  # 5분 사이클
+            await asyncio.sleep(60)   # 1분 사이클
 
     def stop(self):
         self.running = False
