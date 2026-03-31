@@ -273,8 +273,7 @@ class TradingBot:
         elif signal.action == "SELL":
             # 포지션이 없으면 SELL 무시 (허공 매도 방지)
             if pos_key not in self.positions:
-                self._log("INFO", signal.symbol, f"SELL 신호 무시 — 보유 포지션 없음")
-                return
+                return  # 포지션 없으면 조용히 무시
             pnl = self._exit_position(signal, task)
             db.record_trade(
                 exchange=task["exchange"], symbol=signal.symbol,
