@@ -1056,6 +1056,7 @@ function updateDashboard(data) {
     const newKey  = incoming[0]?.time  + incoming[0]?.symbol;
     if (newKey !== prevKey && (incoming[0].action === 'BUY' || incoming[0].action === 'SELL')) {
       showToast(incoming[0]);
+      loadBalance();  // 거래 발생 시 잔액 갱신
     }
   }
 
@@ -1866,7 +1867,6 @@ connect();
 fetch('/api/status').then(r => r.json()).then(updateDashboard).catch(() => {});
 loadStats();
 loadBalance();
-setInterval(loadBalance, 30000);  // 30초마다 잔액 갱신
 </script>
 </body>
 </html>
