@@ -101,6 +101,7 @@ strategies:
   bollinger_short:
     period: 20
     std_dev: 2.0
+    scalp_exit: true  # 중간 밴드 회복 시 청산 (단타용)
     interval: "15m"
 
   # ── AI 전략 (Claude API 기반 종합 분석) ─────
