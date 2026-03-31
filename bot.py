@@ -44,6 +44,7 @@ class TradingBot:
         self._init_strategies()
         self.notifier = create_notifier(self.cfg)
         db.init_db()
+        self._sync_positions_from_exchange()
         logger.info(f"봇 초기화 완료 | 모드: {self.mode.upper()}")
 
     # ── 초기화 ───────────────────────────────────────
@@ -104,6 +105,34 @@ class TradingBot:
             })
 
         logger.info(f"전략 {len(self.tasks)}개 로드됨")
+
+    def _sync_positions_from_exchange(self):
+        """봇 재시작 시 거래소 실제 잔고에서 포지션 복원"""
+        if not self.upbit:
+            return
+        try:
+            bal = self.upbit.get_balance()
+            traded_symbols = {t["symbol"] for t in self.tasks if t["exchange"] == "upbit"}
+            for pos in bal.get("positions", []):
+                symbol = pos["symbol"]          # "KRW-BTC"
+                if symbol not in traded_symbols:
+                    continue
+                if pos["qty"] <= 0:
+                    continue
+                key = f"upbit:{symbol}"
+                self.positions[key] = {
+                    "symbol":         symbol,
+                    "exchange":       "UPBIT",
+                    "qty":            pos["qty"],
+                    "avg_price":      pos["avg_price"],
+                    "current_price":  pos["current_price"],
+                    "invested":       pos["avg_price"] * pos["qty"],
+                    "unrealized_pnl": pos.get("pnl_pct", 0.0),
+                    "entry_time":     "복원됨",
+                }
+                logger.info(f"[포지션 복원] {symbol} | {pos['qty']} @ {pos['avg_price']:,.0f}")
+        except Exception as e:
+            logger.warning(f"포지션 복원 실패: {e}")
 
     # ── OHLCV 조회 ───────────────────────────────────
     async def _fetch_ohlcv(self, task: dict):
