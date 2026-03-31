@@ -14,8 +14,8 @@ kis:
 
 # ── 업비트 (Upbit) ──────────────────────────
 upbit:
-  access_key: "YOUR_UPBIT_ACCESS_KEY"
-  secret_key: "YOUR_UPBIT_SECRET_KEY"
+  access_key: "ceu8yux4xDpUpAlN5a1UGxgUN5LtmeZmpe9hbYLT"
+  secret_key: "cPM9lx1oFoCuAD8CTUHYAhUzyDxgFPZgWUSJbLxU"
 
 # ── 바이낸스 (Binance) ──────────────────────
 binance:
@@ -29,25 +29,31 @@ trading:
   stocks:
     - symbol: "005930"   # 삼성전자
       strategy: "ma_crossover"
-      amount: 500000     # 1회 매수 금액 (원)
+      amount: 5000      # 1회 매수 금액 (원)
     - symbol: "000660"   # SK하이닉스
       strategy: "rsi"
-      amount: 300000
+      amount: 5000
 
-  # 코인 (업비트) — 변동성 돌파 + RSI 조합 권장
+  # 코인 (업비트) — 단타 설정
   upbit_coins:
     - symbol: "KRW-BTC"
-      strategy: "volatility_breakout"
-      amount: 100000     # 1회 매수 금액 (원)
+      strategy: "volatility_breakout"   # 일 단타: 당일 매수 → 익일 시가 매도
+      amount: 5000
     - symbol: "KRW-ETH"
-      strategy: "rsi"
-      amount: 100000
+      strategy: "bollinger_short"       # 15분봉 볼린저 단타
+      amount: 5000
+    - symbol: "KRW-XRP"
+      strategy: "rsi_short"             # 15분봉 RSI 단타
+      amount: 5000
 
-  # 코인 (바이낸스) — MACD 전략 적용
+  # 코인 (바이낸스) — 단타 설정
   binance_coins:
     - symbol: "BTCUSDT"
-      strategy: "macd"
-      amount: 50         # USDT 기준
+      strategy: "ma_crossover_short"    # 15분봉 MA 크로스 단타
+      amount: 50
+    - symbol: "ETHUSDT"
+      strategy: "rsi_short"             # 15분봉 RSI 단타
+      amount: 50
 
 # ── 리스크 관리 ──────────────────────────────
 risk:
@@ -75,30 +81,35 @@ strategies:
     interval: "1h"
 
   volatility_breakout:
-    k: 0.5             # 변동성 배수 (낮을수록 신호 많음, 권장 0.3~0.7)
-    use_ma_filter: true  # true: 하락장 진입 방지 (권장)
-    ma_period: 20      # MA 필터 기간
-    interval: "1d"     # 일봉 기준으로 운영
+    k: 0.5              # 변동성 비율 (0.3~0.7, 낮을수록 민감)
+    ma_period: 5        # MA 필터 기간 (하락 추세 진입 방지)
+    use_ma_filter: true # true 권장 (false로 하면 하락장에서 매수 위험)
+    interval: "1d"      # 일봉 기준
 
-  macd:
-    fast: 12           # 단기 EMA 기간
-    slow: 26           # 장기 EMA 기간
-    signal: 9          # 시그널선 기간
-    use_zero_filter: false  # true: 제로선 반대방향 교차 신호 무시
-    interval: "4h"     # 4시간봉 권장 (1h도 가능)
+  # ── 코인 단타용 (15분봉 기준) ─────────────────
+  ma_crossover_short:
+    short_period: 3     # 빠른 단기선
+    long_period: 10     # 빠른 장기선
+    interval: "15m"
 
-# ── 알림 설정 ────────────────────────────────
-notifications:
-  discord_webhook: ""    # Discord 웹훅 URL  예: https://discord.com/api/webhooks/...
-  kakao_token: ""        # 카카오 나에게 보내기 access_token
-  min_confidence: 0.5    # 이 미만 신뢰도 신호는 무시
-  on_buy: true
-  on_sell: true
-  on_risk: true
-  on_start_stop: true
-  daily_summary: true
+  rsi_short:
+    period: 7           # 14→7, 단기 반응 빠르게
+    oversold: 30
+    overbought: 70
+    interval: "15m"
+
+  bollinger_short:
+    period: 20
+    std_dev: 2.0
+    interval: "15m"
+
+  # ── AI 전략 (Claude API 기반 종합 분석) ─────
+  ai:
+    api_key: "YOUR_ANTHROPIC_API_KEY"  # console.anthropic.com 에서 발급
+    model: "claude-haiku-4-5-20251001" # 빠르고 저렴 (claude-opus-4-6 도 가능)
+    interval: "1h"                     # 분석 간격
 
 # ── 웹 서버 ─────────────────────────────────
 server:
   host: "0.0.0.0"
-  port: 8000
+  port: 18880
