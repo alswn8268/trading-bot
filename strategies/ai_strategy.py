@@ -6,8 +6,6 @@ import logging
 import numpy as np
 import pandas as pd
 
-import anthropic
-
 from .base import BaseStrategy, Signal
 
 logger = logging.getLogger("ai_strategy")
@@ -125,13 +123,18 @@ class AIStrategy(BaseStrategy):
 
     def __init__(self, symbol: str, params: dict):
         super().__init__(symbol, params)
+        try:
+            import anthropic as _anthropic
+        except ImportError:
+            raise ImportError("AI 전략을 사용하려면 'pip install anthropic' 를 실행하세요.")
         api_key = params.get("api_key", "")
         if not api_key or api_key.startswith("YOUR_"):
             raise ValueError(
                 "AI 전략에는 Anthropic API 키가 필요합니다. "
                 "config.yaml의 strategies.ai.api_key를 설정하세요."
             )
-        self._client = anthropic.Anthropic(api_key=api_key)
+        self._anthropic = _anthropic
+        self._client = _anthropic.Anthropic(api_key=api_key)
         self._model = params.get("model", "claude-haiku-4-5-20251001")
 
     def analyze(self, df: pd.DataFrame) -> Signal:
@@ -172,6 +175,6 @@ class AIStrategy(BaseStrategy):
         except json.JSONDecodeError as e:
             logger.error(f"AI 응답 파싱 실패: {e} | raw={raw!r}")
             return Signal("HOLD", self.symbol, price, "AI 분석: 응답 파싱 오류", 0.0)
-        except anthropic.APIError as e:
+        except self._anthropic.APIError as e:
             logger.error(f"Claude API 오류: {e}")
             return Signal("HOLD", self.symbol, price, f"AI 분석: API 오류", 0.0)

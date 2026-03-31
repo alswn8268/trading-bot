@@ -793,7 +793,7 @@ tbody td {
       <div class="table-wrap">
         <table>
           <thead>
-            <tr><th>시각</th><th>모드</th><th>거래소</th><th>종목</th><th>구분</th><th>가격</th><th>손익</th><th>사유</th></tr>
+            <tr><th>시각</th><th>모드</th><th>거래소</th><th>종목</th><th>구분</th><th>가격</th><th>손익</th><th>결과</th><th>사유</th></tr>
             <tr class="col-filter-row">
               <td><input  class="cf-input"  id="cfTime"     placeholder="시각"  oninput="applyColFilters()"></td>
               <td><select class="cf-select" id="cfMode"     onchange="applyColFilters()">
@@ -808,11 +808,14 @@ tbody td {
               </select></td>
               <td></td>
               <td></td>
+              <td><select class="cf-select" id="cfResult" onchange="applyColFilters()">
+                <option value="">전체</option><option value="win">성공</option><option value="loss">실패</option><option value="hold">보유중</option>
+              </select></td>
               <td><input  class="cf-input"  id="cfReason"   placeholder="사유"  oninput="applyColFilters()"></td>
             </tr>
           </thead>
           <tbody id="tradeBody">
-            <tr><td colspan="8"><div class="empty-state"><div class="empty-state-icon">📂</div><div class="empty-state-text">거래 기록 없음</div></div></td></tr>
+            <tr><td colspan="9"><div class="empty-state"><div class="empty-state-icon">📂</div><div class="empty-state-text">거래 기록 없음</div></div></td></tr>
           </tbody>
         </table>
       </div>
@@ -888,32 +891,6 @@ tbody td {
           <div><div class="ex-name">바이낸스</div><div class="ex-sub">글로벌 · USDT</div></div>
         </div>
         <div class="ex-pill off" id="exBinance">미연결</div>
-      </div>
-    </div>
-
-    <!-- Market Hours -->
-    <div class="card">
-      <div class="card-header">🕐 시장 운영시간</div>
-      <div class="market-row">
-        <div>
-          <div class="market-name">KRX (코스피/코스닥)</div>
-          <div class="market-hours">평일 09:00 – 15:30 KST</div>
-        </div>
-        <div class="market-tag closed" id="mktKrx">확인 중</div>
-      </div>
-      <div class="market-row">
-        <div>
-          <div class="market-name">업비트</div>
-          <div class="market-hours">연중무휴 24/7</div>
-        </div>
-        <div class="market-tag always">운영 중</div>
-      </div>
-      <div class="market-row">
-        <div>
-          <div class="market-name">바이낸스</div>
-          <div class="market-hours">연중무휴 24/7</div>
-        </div>
-        <div class="market-tag always">운영 중</div>
       </div>
     </div>
 
@@ -1178,7 +1155,6 @@ function updateExchanges(exs) {
   setExPill('exUpbit',   exs.upbit);
   setExPill('exBinance', exs.binance);
   const cnt = [exs.kis, exs.upbit, exs.binance].filter(Boolean).length;
-  document.getElementById('sExCount').textContent    = cnt;
   document.getElementById('exConnCount').textContent = `${cnt}/3 연결됨`;
 }
 function setExPill(id, connected) {
@@ -1590,21 +1566,29 @@ function renderTrades(trades) {
   _renderTradeRows(trades);
 }
 
+function _tradeResult(t) {
+  if (t.action !== 'SELL') return 'hold';
+  const pnl = t.pnl ?? 0;
+  return pnl > 0 ? 'win' : pnl < 0 ? 'loss' : 'hold';
+}
+
 function applyColFilters() {
   const cfTime     = (document.getElementById('cfTime')?.value     || '').toLowerCase();
   const cfMode     = (document.getElementById('cfMode')?.value     || '').toLowerCase();
   const cfExchange = (document.getElementById('cfExchange')?.value || '').toLowerCase();
   const cfSymbol2  = (document.getElementById('cfSymbol2')?.value  || '').toUpperCase();
   const cfAction2  = (document.getElementById('cfAction2')?.value  || '').toUpperCase();
+  const cfResult   = (document.getElementById('cfResult')?.value   || '');
   const cfReason   = (document.getElementById('cfReason')?.value   || '').toLowerCase();
 
   const filtered = _allTradesCache.filter(t => {
     const time = (t.timestamp?.slice(11,19) || '').toLowerCase();
-    if (cfTime     && !time.includes(cfTime))               return false;
-    if (cfMode     && (t.mode||'paper').toLowerCase() !== cfMode) return false;
+    if (cfTime     && !time.includes(cfTime))                      return false;
+    if (cfMode     && (t.mode||'paper').toLowerCase() !== cfMode)  return false;
     if (cfExchange && (t.exchange||'').toLowerCase() !== cfExchange) return false;
-    if (cfSymbol2  && !(t.symbol||'').includes(cfSymbol2)) return false;
-    if (cfAction2  && t.action !== cfAction2)              return false;
+    if (cfSymbol2  && !(t.symbol||'').includes(cfSymbol2))         return false;
+    if (cfAction2  && t.action !== cfAction2)                      return false;
+    if (cfResult   && _tradeResult(t) !== cfResult)                return false;
     if (cfReason   && !(t.reason||'').toLowerCase().includes(cfReason)) return false;
     return true;
   });
@@ -1614,14 +1598,20 @@ function applyColFilters() {
 function _renderTradeRows(trades) {
   const tbody = document.getElementById('tradeBody');
   if (!trades.length) {
-    tbody.innerHTML = `<tr><td colspan="8"><div class="empty-state"><div class="empty-state-icon">📂</div><div class="empty-state-text">거래 기록 없음</div></div></td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="9"><div class="empty-state"><div class="empty-state-icon">📂</div><div class="empty-state-text">거래 기록 없음</div></div></td></tr>`;
     return;
   }
   tbody.innerHTML = trades.map(t => {
     const pnl    = t.pnl ?? 0;
     const pnlCls = pnl > 0 ? 'color:var(--green)' : pnl < 0 ? 'color:var(--red)' : 'color:var(--muted)';
-    const pnlStr = t.action === 'SELL' ? ((pnl >= 0 ? '+' : '') + pnl.toFixed(2)) : '—';
+    const pnlStr = t.action === 'SELL' ? ((pnl >= 0 ? '+' : '') + pnl.toFixed(2) + '%') : '—';
     const tMode  = t.mode || 'paper';
+    const result = _tradeResult(t);
+    const resultBadge = result === 'win'
+      ? `<span style="font-size:10px;font-weight:700;color:var(--green);background:var(--green-bg);padding:2px 7px;border-radius:4px">성공</span>`
+      : result === 'loss'
+      ? `<span style="font-size:10px;font-weight:700;color:var(--red);background:var(--red-bg);padding:2px 7px;border-radius:4px">실패</span>`
+      : `<span style="font-size:10px;color:var(--dim)">—</span>`;
     return `<tr>
       <td style="color:var(--dim);font-variant-numeric:tabular-nums">${t.timestamp?.slice(11,19) || ''}</td>
       <td><span class="badge-${tMode}">${tMode.toUpperCase()}</span></td>
@@ -1630,7 +1620,8 @@ function _renderTradeRows(trades) {
       <td><span class="badge badge-${t.action.toLowerCase()}">${t.action}</span></td>
       <td class="price-cell">${Number(t.price).toLocaleString()}</td>
       <td style="${pnlCls};font-weight:700;font-variant-numeric:tabular-nums">${pnlStr}</td>
-      <td style="color:var(--muted);max-width:130px;overflow:hidden;text-overflow:ellipsis">${t.reason || ''}</td>
+      <td>${resultBadge}</td>
+      <td style="color:var(--muted);max-width:120px;overflow:hidden;text-overflow:ellipsis">${t.reason || ''}</td>
     </tr>`;
   }).join('');
 }
@@ -1736,9 +1727,8 @@ function updateLastUpdate() {
     sec < 5 ? '방금 업데이트' : `${sec}초 전`;
 }
 
-setInterval(() => { updateClock(); updateMarketHours(); updateLastUpdate(); }, 1000);
+setInterval(() => { updateClock(); updateLastUpdate(); }, 1000);
 updateClock();
-updateMarketHours();
 
 // ── INIT ────────────────────────────────────────
 connect();
