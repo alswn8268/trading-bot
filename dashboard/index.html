@@ -297,6 +297,26 @@ thead th {
   position: sticky; top: 0; z-index: 1;
   white-space: nowrap;
 }
+thead tr.col-filter-row td {
+  padding: 4px 6px;
+  background: var(--surface2);
+  border-bottom: 2px solid var(--border2);
+  position: sticky; top: 33px; z-index: 1;
+}
+.cf-input, .cf-select {
+  font-family: var(--font);
+  font-size: 11px;
+  width: 100%;
+  padding: 3px 7px;
+  border: 1px solid var(--border);
+  border-radius: var(--rs);
+  background: var(--surface);
+  color: var(--text2);
+  outline: none;
+  transition: border-color 0.15s;
+}
+.cf-input:focus, .cf-select:focus { border-color: var(--blue); }
+.cf-input::placeholder { color: var(--dim); }
 
 tbody tr {
   border-bottom: 1px solid var(--border);
@@ -772,9 +792,27 @@ tbody td {
       </div>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>시각</th><th>모드</th><th>거래소</th><th>종목</th><th>구분</th><th>가격</th><th>손익</th><th>사유</th></tr></thead>
+          <thead>
+            <tr><th>시각</th><th>모드</th><th>거래소</th><th>종목</th><th>구분</th><th>가격</th><th>손익</th><th>사유</th></tr>
+            <tr class="col-filter-row">
+              <td><input  class="cf-input"  id="cfTime"     placeholder="시각"  oninput="applyColFilters()"></td>
+              <td><select class="cf-select" id="cfMode"     onchange="applyColFilters()">
+                <option value="">전체</option><option value="paper">PAPER</option><option value="live">LIVE</option>
+              </select></td>
+              <td><select class="cf-select" id="cfExchange" onchange="applyColFilters()">
+                <option value="">전체</option><option value="upbit">UPBIT</option><option value="kis">KIS</option><option value="binance">BINANCE</option>
+              </select></td>
+              <td><input  class="cf-input"  id="cfSymbol2"  placeholder="종목"  oninput="applyColFilters()"></td>
+              <td><select class="cf-select" id="cfAction2"  onchange="applyColFilters()">
+                <option value="">전체</option><option value="BUY">BUY</option><option value="SELL">SELL</option>
+              </select></td>
+              <td></td>
+              <td></td>
+              <td><input  class="cf-input"  id="cfReason"   placeholder="사유"  oninput="applyColFilters()"></td>
+            </tr>
+          </thead>
           <tbody id="tradeBody">
-            <tr><td colspan="7"><div class="empty-state"><div class="empty-state-icon">📂</div><div class="empty-state-text">거래 기록 없음</div></div></td></tr>
+            <tr><td colspan="8"><div class="empty-state"><div class="empty-state-icon">📂</div><div class="empty-state-text">거래 기록 없음</div></div></td></tr>
           </tbody>
         </table>
       </div>
@@ -1545,7 +1583,35 @@ async function loadTrades() {
   } catch(e) { console.error(e); }
 }
 
+let _allTradesCache = [];
+
 function renderTrades(trades) {
+  _allTradesCache = trades;
+  _renderTradeRows(trades);
+}
+
+function applyColFilters() {
+  const cfTime     = (document.getElementById('cfTime')?.value     || '').toLowerCase();
+  const cfMode     = (document.getElementById('cfMode')?.value     || '').toLowerCase();
+  const cfExchange = (document.getElementById('cfExchange')?.value || '').toLowerCase();
+  const cfSymbol2  = (document.getElementById('cfSymbol2')?.value  || '').toUpperCase();
+  const cfAction2  = (document.getElementById('cfAction2')?.value  || '').toUpperCase();
+  const cfReason   = (document.getElementById('cfReason')?.value   || '').toLowerCase();
+
+  const filtered = _allTradesCache.filter(t => {
+    const time = (t.timestamp?.slice(11,19) || '').toLowerCase();
+    if (cfTime     && !time.includes(cfTime))               return false;
+    if (cfMode     && (t.mode||'paper').toLowerCase() !== cfMode) return false;
+    if (cfExchange && (t.exchange||'').toLowerCase() !== cfExchange) return false;
+    if (cfSymbol2  && !(t.symbol||'').includes(cfSymbol2)) return false;
+    if (cfAction2  && t.action !== cfAction2)              return false;
+    if (cfReason   && !(t.reason||'').toLowerCase().includes(cfReason)) return false;
+    return true;
+  });
+  _renderTradeRows(filtered);
+}
+
+function _renderTradeRows(trades) {
   const tbody = document.getElementById('tradeBody');
   if (!trades.length) {
     tbody.innerHTML = `<tr><td colspan="8"><div class="empty-state"><div class="empty-state-icon">📂</div><div class="empty-state-text">거래 기록 없음</div></div></td></tr>`;

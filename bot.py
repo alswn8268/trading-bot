@@ -253,7 +253,13 @@ class TradingBot:
                   f"{signal.action} @ {signal.price:,.0f} | {signal.reason} | "
                   f"신뢰도 {signal.confidence:.0%}")
 
+        pos_key = f"{task['exchange']}:{signal.symbol}"
+
         if signal.action == "BUY":
+            # 이미 포지션이 있으면 중복 매수 방지
+            if pos_key in self.positions:
+                self._log("INFO", signal.symbol, f"BUY 신호 무시 — 포지션 이미 보유 중")
+                return
             self._enter_position(signal, task)
             db.record_trade(
                 exchange=task["exchange"], symbol=signal.symbol,
@@ -265,6 +271,10 @@ class TradingBot:
                 signal.reason, signal.confidence, task["exchange"].upper()
             )
         elif signal.action == "SELL":
+            # 포지션이 없으면 SELL 무시 (허공 매도 방지)
+            if pos_key not in self.positions:
+                self._log("INFO", signal.symbol, f"SELL 신호 무시 — 보유 포지션 없음")
+                return
             pnl = self._exit_position(signal, task)
             db.record_trade(
                 exchange=task["exchange"], symbol=signal.symbol,

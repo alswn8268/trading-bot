@@ -1,86 +1,72 @@
 """
-변동성 돌파 전략 (Volatility Breakout)
-- 코인 단타에서 가장 검증된 전략 중 하나
-- 매수 목표가 = 오늘 시가 + (전날 고가 - 전날 저가) × k
-- 현재가가 목표가 돌파 → 매수
-- 다음날 시가에 무조건 청산
-- MA 필터로 하락장 진입 방지
+변동성 돌파 전략 (Larry Williams의 변동성 돌파)
+- 매수 목표가 = 당일 시가 + (전일 고가 - 전일 저가) × k
+- 당일 가격이 목표가 돌파 시 매수
+- 다음날 시가에 무조건 매도
+- 5일 이동평균 필터: 현재가 > 5일 MA일 때만 매수 (하락 추세 진입 방지)
+
+참고: 코인 자동매매에서 가장 검증된 전략 중 하나
+     하락장에서 존버 대비 손실 대폭 축소 효과
 """
-from typing import Optional
 import pandas as pd
 from .base import BaseStrategy, Signal
 
 
 class VolatilityBreakoutStrategy(BaseStrategy):
-    def __init__(self, symbol: str, params: dict):
-        super().__init__(symbol, params)
-        self._bought_date: Optional[str] = None   # 매수한 날짜 기록
-
-    def _get_date_str(self, ts) -> str:
-        """날짜를 'YYYY-MM-DD' 문자열로 통일"""
-        try:
-            return str(pd.Timestamp(ts).date())
-        except Exception:
-            return str(ts)[:10]
 
     def analyze(self, df: pd.DataFrame) -> Signal:
-        k             = self.params.get("k", 0.5)           # 변동성 배수 (낮을수록 신호 많음)
+        k = self.params.get("k", 0.5)                    # 변동성 비율 (0.3~0.7)
+        ma_period = self.params.get("ma_period", 5)      # 이동평균 필터 기간
         use_ma_filter = self.params.get("use_ma_filter", True)
-        ma_period     = self.params.get("ma_period", 20)    # MA 필터 기간
 
-        min_rows = max(ma_period, 3) + 1
-        if len(df) < min_rows:
-            return Signal("HOLD", self.symbol, float(df["close"].iloc[-1]), "데이터 부족", 0.0)
+        if len(df) < ma_period + 2:
+            return Signal("HOLD", self.symbol, df["close"].iloc[-1], "데이터 부족", 0.0)
 
-        df    = df.copy()
+        df = df.copy()
+        df["ma"] = df["close"].rolling(ma_period).mean()
+
+        # 전일 데이터
+        prev = df.iloc[-2]
         today = df.iloc[-1]
-        prev  = df.iloc[-2]
 
-        price      = float(today["close"])
-        today_open = float(today["open"])
-        today_date = self._get_date_str(today["date"])
+        prev_range = prev["high"] - prev["low"]          # 전일 고저 범위
+        target = today["open"] + prev_range * k          # 당일 매수 목표가
+        current_price = today["close"]
+        ma_now = today["ma"]
 
-        # ── 익일 청산 ────────────────────────────────────────
-        # 어제 매수했고, 오늘로 날짜가 바뀐 경우 → 시가에 청산
-        if self._bought_date and self._bought_date != today_date:
-            self._bought_date = None
-            return Signal(
-                "SELL", self.symbol, today_open,
-                f"변동성 돌파 익일 청산 (시가 {today_open:,.0f})", 1.0,
-            )
+        # ── 매수 조건 ─────────────────────────────────────
+        # 1. 현재가가 목표가를 돌파했는가
+        price_breakout = current_price >= target
 
-        # 오늘 이미 매수한 경우 → 홀드
-        if self._bought_date == today_date:
-            return Signal("HOLD", self.symbol, price, "포지션 유지 중 (당일 청산 대기)", 0.5)
+        # 2. MA 필터: 현재가 > 이동평균 (상승 추세 확인)
+        ma_filter = (current_price >= ma_now) if use_ma_filter else True
 
-        # ── MA 필터: 하락장이면 진입하지 않음 ────────────────
-        if use_ma_filter:
-            df["ma"] = df["close"].rolling(ma_period).mean()
-            ma_val   = df["ma"].iloc[-1]
-            if not pd.isna(ma_val) and price < ma_val:
+        # ── 매도 조건 (BUY보다 먼저 체크) ────────────────
+        # 전날에 변동성 돌파 BUY가 발생했으면 오늘 시가에 매도 (익일 시가 청산 원칙)
+        if len(df) >= 3:
+            prev_target = prev["open"] + (df.iloc[-3]["high"] - df.iloc[-3]["low"]) * k
+            if prev["close"] >= prev_target:
                 return Signal(
-                    "HOLD", self.symbol, price,
-                    f"MA 필터 (현재가 {price:,.0f} < MA{ma_period} {ma_val:,.0f})", 0.1,
+                    "SELL", self.symbol, current_price,
+                    f"변동성 돌파 익일 청산 (전일 돌파={prev['close']:,.0f} ≥ 목표={prev_target:,.0f})",
+                    0.9,
                 )
 
-        # ── 변동성 돌파 계산 ─────────────────────────────────
-        prev_range = float(prev["high"]) - float(prev["low"])
-        if prev_range <= 0:
-            return Signal("HOLD", self.symbol, price, "전일 변동폭 없음", 0.0)
-
-        target    = today_open + k * prev_range
-        gap_to_tg = (target - price) / price * 100
-
-        if price > target:
-            confidence        = min((price - target) / prev_range, 1.0)
-            self._bought_date = today_date
+        # ── 매수 조건 ─────────────────────────────────────
+        if price_breakout and ma_filter:
+            range_pct = prev_range / prev["close"] * 100
+            confidence = min(range_pct / 5, 1.0)
             return Signal(
-                "BUY", self.symbol, price,
-                f"변동성 돌파 (목표 {target:,.0f} 돌파, k={k}, 전일범위 {prev_range:,.0f})",
+                "BUY", self.symbol, current_price,
+                f"변동성 돌파 (목표가={target:,.0f}, k={k}, MA{ma_period} 통과)",
                 confidence,
             )
 
-        return Signal(
-            "HOLD", self.symbol, price,
-            f"목표가 미달 ({price:,.0f} / 목표 {target:,.0f}, -{gap_to_tg:.1f}%)", 0.1,
-        )
+        reason_parts = []
+        if not price_breakout:
+            reason_parts.append(f"목표가 미달 (현재={current_price:,.0f} < 목표={target:,.0f})")
+        if use_ma_filter and not ma_filter:
+            reason_parts.append(f"MA{ma_period} 필터 미통과")
+
+        return Signal("HOLD", self.symbol, current_price,
+                      " | ".join(reason_parts) or "대기", 0.1)
