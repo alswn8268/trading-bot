@@ -322,7 +322,9 @@ tbody td {
 .badge-buy  { color: var(--green); background: var(--green-bg); }
 .badge-sell { color: var(--red);   background: var(--red-bg); }
 .badge-hold { color: var(--muted); background: var(--bg); }
-.badge-ex   { font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 4px; color: var(--blue); background: var(--blue-bg); }
+.badge-ex    { font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 4px; color: var(--blue);   background: var(--blue-bg); }
+.badge-paper { font-size: 9px;  font-weight: 700; padding: 2px 6px; border-radius: 4px; color: var(--yellow); background: var(--yellow-bg); letter-spacing: 0.2px; }
+.badge-live  { font-size: 9px;  font-weight: 700; padding: 2px 6px; border-radius: 4px; color: var(--red);    background: var(--red-bg);    letter-spacing: 0.2px; }
 
 .conf-wrap  { display: flex; align-items: center; gap: 6px; }
 .conf-track { width: 46px; height: 4px; background: var(--bg); border-radius: 2px; overflow: hidden; flex-shrink: 0; border: 1px solid var(--border); }
@@ -748,9 +750,9 @@ tbody td {
       </div>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>시각</th><th>거래소</th><th>종목</th><th>신호</th><th>가격</th><th>신뢰도</th><th>사유</th></tr></thead>
+          <thead><tr><th>시각</th><th>모드</th><th>거래소</th><th>종목</th><th>신호</th><th>가격</th><th>신뢰도</th><th>사유</th></tr></thead>
           <tbody id="signalBody">
-            <tr><td colspan="7"><div class="empty-state"><div class="empty-state-icon">📭</div><div class="empty-state-text">신호 대기 중...</div></div></td></tr>
+            <tr><td colspan="8"><div class="empty-state"><div class="empty-state-icon">📭</div><div class="empty-state-text">신호 대기 중...</div></div></td></tr>
           </tbody>
         </table>
       </div>
@@ -762,12 +764,15 @@ tbody td {
         <button class="filter-btn active" onclick="setTradeFilter('all',this)">전체</button>
         <button class="filter-btn f-buy"  onclick="setTradeFilter('BUY',this)">매수</button>
         <button class="filter-btn f-sell" onclick="setTradeFilter('SELL',this)">매도</button>
+        <button class="filter-btn"        onclick="setTradeDateFilter('today',this)">오늘</button>
+        <button class="filter-btn"        onclick="setTradeDateFilter('week',this)">이번주</button>
         <div class="filter-spacer"></div>
+        <input id="tradeSearch" class="bt-input" style="width:100px" type="text" placeholder="종목 검색" oninput="loadTrades()">
         <button class="icon-btn" onclick="loadTrades()">새로고침</button>
       </div>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>시각</th><th>거래소</th><th>종목</th><th>구분</th><th>가격</th><th>손익</th><th>사유</th></tr></thead>
+          <thead><tr><th>시각</th><th>모드</th><th>거래소</th><th>종목</th><th>구분</th><th>가격</th><th>손익</th><th>사유</th></tr></thead>
           <tbody id="tradeBody">
             <tr><td colspan="7"><div class="empty-state"><div class="empty-state-icon">📂</div><div class="empty-state-text">거래 기록 없음</div></div></td></tr>
           </tbody>
@@ -878,7 +883,7 @@ tbody td {
     <div class="card">
       <div class="card-header">
         <span>⚠️ 일일 손실 한도</span>
-        <span class="card-header-sub">한도: −2.0%</span>
+        <span class="card-header-sub" id="riskLimitLabel">한도: −2.0%</span>
       </div>
       <div class="risk-body">
         <div class="risk-top">
@@ -985,7 +990,7 @@ tbody td {
 
 <script>
 // ── STATE ──────────────────────────────────────
-const DAILY_LOSS_LIMIT = 2.0;
+let DAILY_LOSS_LIMIT = 2.0;   // config에서 동적으로 갱신됨
 let allSignals   = [];
 let allLogs      = [];
 let signalFilter = 'all';
@@ -1017,6 +1022,12 @@ function updateDashboard(data) {
   lastData     = data;
   lastUpdateTs = Date.now();
 
+  // risk_config에서 한도 동기화
+  if (data.risk_config?.daily_loss_limit) {
+    DAILY_LOSS_LIMIT = data.risk_config.daily_loss_limit;
+    document.getElementById('riskLimitLabel').textContent = `한도: −${DAILY_LOSS_LIMIT}%`;
+  }
+
   updateHeader(data);
   updateStats(data);
   updateExchanges(data.exchanges || {});
@@ -1040,7 +1051,7 @@ function updateDashboard(data) {
   renderLogs();
   renderPositions(data.positions || []);
   updateDistChart();
-  updateStrategyList(data.task_count || 0);
+  updateStrategyList(data);
 }
 
 // ── HEADER ──────────────────────────────────────
@@ -1170,31 +1181,22 @@ function updateMarketHours() {
 }
 
 // ── STRATEGY LIST ────────────────────────────────
-function updateStrategyList(count) {
-  const el = document.getElementById('strategyList');
-  document.getElementById('stratCount').textContent = count + '개';
-  if (!count) {
+function updateStrategyList(data) {
+  const tasks = data.tasks || [];
+  const el    = document.getElementById('strategyList');
+  document.getElementById('stratCount').textContent = tasks.length + '개';
+  if (!tasks.length) {
     el.innerHTML = `<div class="empty-state" style="padding:18px"><div class="empty-state-text" style="font-size:11px">봇 시작 후 전략이 표시됩니다</div></div>`;
     return;
   }
-  // 신호 목록에서 고유 종목+거래소 추출해서 전략 표시
-  const seen = new Set();
-  const items = allSignals.filter(s => {
-    const key = s.exchange + s.symbol;
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  }).slice(0, 8);
-
-  if (!items.length) return;
-  el.innerHTML = items.map(s => `
+  el.innerHTML = tasks.map(t => `
     <div class="strat-row">
       <div class="strat-accent"></div>
       <div class="strat-info">
-        <div class="strat-symbol">${s.symbol}</div>
-        <div class="strat-detail">${s.exchange}</div>
+        <div class="strat-symbol">${t.symbol}</div>
+        <div class="strat-detail">${t.exchange.toUpperCase()} · ${Number(t.amount).toLocaleString()}원 · ${t.interval}</div>
       </div>
-      <span class="strat-type">${s.action}</span>
+      <span class="strat-type">${t.strategy.replace('Strategy','')}</span>
     </div>`).join('');
 }
 
@@ -1218,18 +1220,21 @@ function renderSignals() {
   const tbody = document.getElementById('signalBody');
 
   if (!sigs.length) {
-    tbody.innerHTML = `<tr><td colspan="7"><div class="empty-state">
+    tbody.innerHTML = `<tr><td colspan="8"><div class="empty-state">
       <div class="empty-state-icon">📭</div>
       <div class="empty-state-text">${query ? '검색 결과 없음' : '신호 대기 중...'}</div>
     </div></td></tr>`;
     return;
   }
 
+  const curMode = lastData?.mode || 'paper';
   tbody.innerHTML = sigs.map(s => {
     const conf  = parseFloat(s.confidence) || 0;
     const color = s.action === 'BUY' ? 'var(--green)' : s.action === 'SELL' ? 'var(--red)' : 'var(--dim)';
+    const modeBadge = `<span class="badge-${curMode}">${curMode.toUpperCase()}</span>`;
     return `<tr>
       <td style="color:var(--dim);font-variant-numeric:tabular-nums">${s.time}</td>
+      <td>${modeBadge}</td>
       <td><span class="badge-ex">${s.exchange}</span></td>
       <td style="font-weight:700">${s.symbol}</td>
       <td><span class="badge badge-${s.action.toLowerCase()}">${s.action}</span></td>
@@ -1240,7 +1245,7 @@ function renderSignals() {
           <span class="conf-text" style="color:${color}">${s.confidence}</span>
         </div>
       </td>
-      <td style="color:var(--muted);max-width:150px;overflow:hidden;text-overflow:ellipsis">${s.reason}</td>
+      <td style="color:var(--muted);max-width:130px;overflow:hidden;text-overflow:ellipsis">${s.reason}</td>
     </tr>`;
   }).join('');
 }
@@ -1431,7 +1436,11 @@ async function toggleMode() {
   const cur = lastData?.mode || 'paper';
   const nxt = cur === 'paper' ? 'live' : 'paper';
   if (nxt === 'live' && !confirm('⚠️ 실거래 모드로 전환합니다.\n실제 자금이 사용됩니다. 계속하시겠습니까?')) return;
-  try { await fetch(`/api/mode/${nxt}`, { method: 'POST' }); } catch(e) { console.error(e); }
+  try {
+    await fetch(`/api/mode/${nxt}`, { method: 'POST' });
+    const data = await fetch('/api/status').then(r => r.json());
+    updateDashboard(data);
+  } catch(e) { console.error(e); }
 }
 
 // ── BOT ACTIONS ─────────────────────────────────
@@ -1480,8 +1489,9 @@ async function loadHistoryChart() {
 }
 
 // ── LEFT TABS ────────────────────────────────────
-let leftTab = 'signals';
-let tradeFilter = 'all';
+let leftTab         = 'signals';
+let tradeFilter     = 'all';
+let tradeDateFilter = 'all';  // all | today | week
 
 function setLeftTab(tab, btn) {
   leftTab = tab;
@@ -1495,34 +1505,60 @@ function setLeftTab(tab, btn) {
 
 function setTradeFilter(filter, btn) {
   tradeFilter = filter;
-  document.querySelectorAll('#tabTrades .filter-btn').forEach(b => b.classList.remove('active'));
+  // 매수/매도 버튼만 active 처리 (날짜 버튼과 분리)
+  document.querySelectorAll('#tabTrades .filter-btn').forEach(b => {
+    if (['전체','매수','매도'].some(t => b.textContent.includes(t))) b.classList.remove('active');
+  });
+  btn.classList.add('active');
+  loadTrades();
+}
+
+function setTradeDateFilter(range, btn) {
+  tradeDateFilter = range;
+  document.querySelectorAll('#tabTrades .filter-btn').forEach(b => {
+    if (['오늘','이번주'].some(t => b.textContent.includes(t))) b.classList.remove('active');
+  });
   btn.classList.add('active');
   loadTrades();
 }
 
 async function loadTrades() {
-  const url = tradeFilter === 'all' ? '/api/trades?limit=100' : `/api/trades?limit=100&action=${tradeFilter}`;
+  const params = new URLSearchParams({ limit: 200 });
+  if (tradeFilter !== 'all') params.set('action', tradeFilter);
+
+  const symbol = document.getElementById('tradeSearch')?.value.trim().toUpperCase();
+  if (symbol) params.set('symbol', symbol);
+
+  if (tradeDateFilter === 'today') {
+    params.set('since', new Date().toISOString().slice(0, 10));
+  } else if (tradeDateFilter === 'week') {
+    const d = new Date(); d.setDate(d.getDate() - 7);
+    params.set('since', d.toISOString().slice(0, 10));
+  }
+
   try {
-    const res  = await fetch(url);
+    const res  = await fetch('/api/trades?' + params.toString());
     const json = await res.json();
     renderTrades(json.trades || []);
-    const cnt = document.getElementById('signalCount');
-    cnt.textContent = (json.trades?.length ?? 0) + ' trades';
+    document.getElementById('signalCount').textContent =
+      (json.trades?.length ?? 0) + ' trades';
   } catch(e) { console.error(e); }
 }
 
 function renderTrades(trades) {
   const tbody = document.getElementById('tradeBody');
   if (!trades.length) {
-    tbody.innerHTML = `<tr><td colspan="7"><div class="empty-state"><div class="empty-state-icon">📂</div><div class="empty-state-text">거래 기록 없음</div></div></td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="8"><div class="empty-state"><div class="empty-state-icon">📂</div><div class="empty-state-text">거래 기록 없음</div></div></td></tr>`;
     return;
   }
   tbody.innerHTML = trades.map(t => {
     const pnl    = t.pnl ?? 0;
     const pnlCls = pnl > 0 ? 'color:var(--green)' : pnl < 0 ? 'color:var(--red)' : 'color:var(--muted)';
     const pnlStr = t.action === 'SELL' ? ((pnl >= 0 ? '+' : '') + pnl.toFixed(2)) : '—';
+    const tMode  = t.mode || 'paper';
     return `<tr>
       <td style="color:var(--dim);font-variant-numeric:tabular-nums">${t.timestamp?.slice(11,19) || ''}</td>
+      <td><span class="badge-${tMode}">${tMode.toUpperCase()}</span></td>
       <td><span class="badge-ex">${t.exchange}</span></td>
       <td style="font-weight:700">${t.symbol}</td>
       <td><span class="badge badge-${t.action.toLowerCase()}">${t.action}</span></td>

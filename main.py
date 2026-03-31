@@ -123,8 +123,8 @@ async def reset_stats():
 
 
 @app.get("/api/trades")
-async def get_trades(limit: int = 100, action: str = None, symbol: str = None):
-    trades = db.get_trades(action=action, symbol=symbol, limit=limit)
+async def get_trades(limit: int = 200, action: str = None, symbol: str = None, since: str = None):
+    trades = db.get_trades(action=action, symbol=symbol, since_date=since, limit=limit)
     return {"trades": trades}
 
 

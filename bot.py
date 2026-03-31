@@ -353,13 +353,15 @@ class TradingBot:
             await self._ws_callback()
 
     def get_status(self) -> dict:
+        today = datetime.now().strftime("%Y-%m-%d")
+        today_stats = db.get_stats(since_date=today)
         return {
             "running":        self.running,
             "mode":           self.mode,
             "task_count":     len(self.tasks),
-            "daily_pnl":      self.daily_pnl,
-            "realized_pnl":   self.realized_pnl,
-            "trade_count":    self.trade_count,
+            "daily_pnl":      today_stats.get("total_pnl", self.daily_pnl),
+            "realized_pnl":   today_stats.get("total_pnl", self.realized_pnl),
+            "trade_count":    today_stats.get("total_trades", self.trade_count),
             "position_count": len(self.positions),
             "logs":           self.logs[:30],
             "signals":        self.signals[:20],
@@ -369,4 +371,15 @@ class TradingBot:
                 "upbit":   self.upbit   is not None,
                 "binance": self.binance is not None,
             },
+            "risk_config": self.risk,
+            "tasks": [
+                {
+                    "exchange": t["exchange"],
+                    "symbol":   t["symbol"],
+                    "strategy": t["strategy"].__class__.__name__,
+                    "interval": t["interval"],
+                    "amount":   t["amount"],
+                }
+                for t in self.tasks
+            ],
         }
