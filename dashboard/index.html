@@ -676,6 +676,24 @@ tbody td {
   height: 100%; border-radius: 2px;
   transition: width 0.4s, background 0.3s;
 }
+
+/* ── BALANCE CARD ────────────────────────────── */
+.bal-krw {
+  font-size: 18px; font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  color: var(--text); letter-spacing: -0.5px;
+}
+.bal-krw-label { font-size: 10px; color: var(--muted); margin-bottom: 3px; }
+.bal-divider { height: 1px; background: var(--border); margin: 8px 0; }
+.bal-coin-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 5px 0; font-size: 11px;
+  border-bottom: 1px solid var(--border);
+}
+.bal-coin-row:last-child { border-bottom: none; }
+.bal-coin-name { font-weight: 700; color: var(--text2); }
+.bal-coin-qty  { font-size: 10px; color: var(--dim); }
+.bal-coin-pnl  { font-size: 11px; font-weight: 700; font-variant-numeric: tabular-nums; }
 </style>
 </head>
 <body>
@@ -864,6 +882,17 @@ tbody td {
 
   <!-- ── RIGHT COLUMN ───────────────────────────── -->
   <div class="right-col">
+
+    <!-- Balance Card -->
+    <div class="card">
+      <div class="card-header">
+        <span>💰 실시간 잔액</span>
+        <button class="icon-btn" onclick="loadBalance()">새로고침</button>
+      </div>
+      <div id="balanceBody" style="padding:10px 13px">
+        <div class="empty-state" style="padding:12px"><div class="empty-state-text" style="font-size:11px">잔액 조회 중...</div></div>
+      </div>
+    </div>
 
     <!-- Risk Gauge -->
     <div class="card">
@@ -1784,10 +1813,60 @@ function updateLastUpdate() {
 setInterval(() => { updateClock(); updateLastUpdate(); }, 1000);
 updateClock();
 
+// ── BALANCE ─────────────────────────────────────
+async function loadBalance() {
+  const el = document.getElementById('balanceBody');
+  try {
+    const data = await fetch('/api/balance').then(r => r.json());
+    const upbit = data.upbit;
+    if (!upbit || upbit.error) {
+      el.innerHTML = `<div style="padding:10px;font-size:11px;color:var(--muted)">${upbit?.error || '업비트 미연결'}</div>`;
+      return;
+    }
+    const cash = upbit.cash ?? 0;
+    const coins = upbit.positions ?? [];
+    const totalVal = coins.reduce((s, c) => s + (c.current_price * c.qty), cash);
+
+    let html = `
+      <div style="padding:10px 0 6px">
+        <div class="bal-krw-label">보유 KRW</div>
+        <div class="bal-krw">${Math.floor(cash).toLocaleString()}원</div>
+      </div>`;
+
+    if (coins.length) {
+      html += `<div class="bal-divider"></div>`;
+      html += coins.map(c => {
+        const val  = c.current_price * c.qty;
+        const pnl  = c.pnl_pct ?? 0;
+        const pnlColor = pnl > 0 ? 'var(--green)' : pnl < 0 ? 'var(--red)' : 'var(--muted)';
+        return `<div class="bal-coin-row">
+          <div>
+            <div class="bal-coin-name">${c.name}</div>
+            <div class="bal-coin-qty">${c.qty.toFixed(6)} · ${Math.floor(val).toLocaleString()}원</div>
+          </div>
+          <div class="bal-coin-pnl" style="color:${pnlColor}">${pnl >= 0 ? '+' : ''}${pnl.toFixed(2)}%</div>
+        </div>`;
+      }).join('');
+    }
+
+    html += `<div class="bal-divider"></div>
+      <div style="display:flex;justify-content:space-between;font-size:11px;padding:2px 0">
+        <span style="color:var(--muted)">총 평가금액</span>
+        <span style="font-weight:800;font-variant-numeric:tabular-nums">${Math.floor(totalVal).toLocaleString()}원</span>
+      </div>`;
+
+    el.innerHTML = html;
+  } catch(e) {
+    el.innerHTML = `<div style="padding:10px;font-size:11px;color:var(--red)">오류: ${e.message}</div>`;
+  }
+}
+
 // ── INIT ────────────────────────────────────────
 connect();
 fetch('/api/status').then(r => r.json()).then(updateDashboard).catch(() => {});
 loadStats();
+loadBalance();
+setInterval(loadBalance, 30000);  // 30초마다 잔액 갱신
 </script>
 </body>
 </html>

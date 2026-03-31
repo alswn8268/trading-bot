@@ -21,3 +21,14 @@ Thumbs.db
 # IDE
 .vscode/
 .idea/
+
+# DB / 데이터
+data/
+*.db
+
+# Claude 내부 설정
+.claude/
+CLAUDE.md
+
+# pip 출력 잔여
+=*

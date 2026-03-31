@@ -113,6 +113,26 @@ async def get_positions():
     return {"positions": list(bot.positions.values())}
 
 
+@app.get("/api/balance")
+async def get_balance():
+    """연결된 거래소의 실제 잔액 조회"""
+    result = {}
+    loop = asyncio.get_running_loop()
+    if bot.upbit:
+        try:
+            bal = await loop.run_in_executor(None, bot.upbit.get_balance)
+            result["upbit"] = bal
+        except Exception as e:
+            result["upbit"] = {"error": str(e)}
+    if bot.binance:
+        try:
+            bal = await loop.run_in_executor(None, bot.binance.get_balance)
+            result["binance"] = bal
+        except Exception as e:
+            result["binance"] = {"error": str(e)}
+    return result
+
+
 @app.post("/api/positions/reset")
 async def reset_stats():
     """일일 손익·거래 통계 초기화"""

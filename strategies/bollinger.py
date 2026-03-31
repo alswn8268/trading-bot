@@ -35,10 +35,11 @@ class BollingerStrategy(BaseStrategy):
         ma         = df["ma"].iloc[-1]
 
         # ── 매도 조건 (BUY보다 먼저) ──────────────────────
-        # 1) 단타: 이전 봉이 중간 밴드 아래였다가 현재 봉에서 중간 밴드 위로 회복
-        if scalp_exit and prev_pct_b < 0.5 and pct_b >= 0.5:
+        # 1) 단타: 하단 밴드 탈출 후 어느 정도 회복 → 즉시 청산
+        #    pct_b >= 0.3: 하단~상단 폭의 30% 이상 회복 (MA의 절반 지점)
+        if scalp_exit and pct_b >= 0.3 and prev_pct_b < pct_b:
             return Signal("SELL", self.symbol, price,
-                          f"볼린저 중간 밴드 회복 (%B={pct_b:.2f}, MA={ma:,.0f})",
+                          f"볼린저 회복 청산 (%B={pct_b:.2f}, MA={ma:,.0f})",
                           0.8)
 
         # 2) 상단 밴드 터치 → 강한 매도
